@@ -19,18 +19,24 @@ from credit_monitor import config
 EPS = 1e-4  # piso para proporções: evita log(0) quando um bin fica vazio
 
 
-def _bin_edges(reference: np.ndarray, bins: int) -> np.ndarray:
-    """Bordas pelos quantis da referência (cada bin com ~mesma massa).
+MAX_DISCRETE_VALUES = 20
 
-    Variáveis discretas (ex.: nº de atrasos, 90% zeros) geram quantis repetidos;
-    ``np.unique`` os colapsa, e a variável acaba com menos bins — o que é correto.
+
+def _bin_edges(reference: np.ndarray, bins: int) -> np.ndarray:
+    """Bordas dos bins, definidas só pela referência.
+
+    - Variável **discreta** (até 20 valores distintos, ex.: nº de atrasos): cada
+      valor vira um bin. Quantis não servem aqui — com 90% de zeros todos os
+      quantis valem 0, sobra um único bin e o PSI daria sempre 0 (ponto cego).
+    - Variável **contínua**: quantis da referência (cada bin com ~mesma massa),
+      o que evita bins vazios e torna o PSI comparável entre variáveis.
     """
-    edges = np.unique(np.quantile(reference, np.linspace(0, 1, bins + 1)))
-    if len(edges) < 2:
-        edges = np.array([reference.min(), reference.max() + 1])
-    edges = edges.astype(float)
-    edges[0], edges[-1] = -np.inf, np.inf
-    return edges
+    distinct = np.unique(reference)
+    if len(distinct) <= MAX_DISCRETE_VALUES:
+        inner = (distinct[:-1] + distinct[1:]) / 2  # pontos médios entre valores vizinhos
+    else:
+        inner = np.unique(np.quantile(reference, np.linspace(0, 1, bins + 1)))[1:-1]
+    return np.concatenate(([-np.inf], inner.astype(float), [np.inf]))
 
 
 def psi(reference: np.ndarray, current: np.ndarray, bins: int = config.PSI_BINS) -> float:
