@@ -81,7 +81,7 @@ FEATURE_LABELS = {
 # --- Separação Referência x Produção -----------------------------------------
 REFERENCE_FRACTION = 0.60  # 60% vira Referência (treino + holdout); 40% vira "futuro"
 HOLDOUT_FRACTION = 0.25  # fatia da Referência reservada para medir o modelo
-REFERENCE_PERIOD = "2025 (safra de treino)"
+REFERENCE_PERIOD = "safra de treino 2025"
 PRODUCTION_MONTHS = ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"]
 BATCH_SIZE = 6000
 
