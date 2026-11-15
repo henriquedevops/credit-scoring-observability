@@ -52,9 +52,7 @@ def pseudonymize(values: pd.Series, salt: str | None = None) -> pd.Series:
     Isso é *pseudonimização* (LGPD art. 13, §4º), não anonimização.
     """
     salt = salt if salt is not None else os.environ.get("CREDIT_MONITOR_ID_SALT", "dev-only-salt")
-    return values.astype(str).map(
-        lambda v: hashlib.sha256(f"{salt}:{v}".encode()).hexdigest()[:16]
-    )
+    return values.astype(str).map(lambda v: hashlib.sha256(f"{salt}:{v}".encode()).hexdigest()[:16])
 
 
 def standardize(raw: pd.DataFrame) -> pd.DataFrame:
