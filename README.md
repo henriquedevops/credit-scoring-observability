@@ -3,15 +3,22 @@
 Camada de **sustentação e confiabilidade** para um modelo de Credit Scoring: contratos de dados,
 simulação e detecção de drift, observabilidade de pipeline e governança (LGPD).
 
-> Tech Challenge — Fase 4 (*Model Monitoring and Security*) da pós-graduação em Machine Learning
-> Engineering (FIAP).
->
-> 🎥 **Vídeo STAR (5 min):** _link a inserir após a gravação_
+É um projeto de referência, pequeno e reproduzível: roda em segundos (cerca de 25 s na máquina de
+desenvolvimento), sem credenciais, sem Docker e sem serviços externos. Serve para quem quer ver, de ponta a ponta, como se
+vigia um modelo depois que ele vai para produção.
+
+**Para quem pode ser útil**
+
+- Pessoas de dados e de engenharia de ML que precisam montar monitoramento de modelo e querem um
+  exemplo completo para adaptar.
+- Times de risco e de crédito que querem entender por que um modelo piora sem dar erro.
+- Quem estuda MLOps e procura um caso prático de contrato de dados, PSI, KS e Evidently AI.
+- Quem cuida de privacidade e quer ver requisitos da LGPD traduzidos em regras de código.
 
 ## O problema em uma frase
 
 Uma fintech tem um modelo de crédito em produção e a economia mudou (inflação, juros, novo público).
-O modelo continua respondendo sem erro nenhum — e é esse o risco: a **degradação é silenciosa**.
+O modelo continua respondendo sem erro nenhum, e é esse o risco: a **degradação é silenciosa**.
 Este projeto mostra como interceptar dado ruim, enxergar a mudança e provar o que a causou.
 
 ## Resultado
@@ -20,13 +27,13 @@ Seis lotes mensais de produção (6.000 pedidos cada) comparados com a referênc
 
 | Lote | Diagnóstico | Features em drift crítico (PSI ≥ 0,2) | PSI do score | AUC | Aprovação | Inadimplência nos aprovados | Alertas |
 |---|---|---|---:|---:|---:|---:|---:|
-| Referência (holdout) | — | — | — | 0,854 | 79,7% | 2,5% | — |
+| Referência (holdout) | n/a | n/a | n/a | 0,854 | 79,7% | 2,5% | n/a |
 | jan/26 | Estável | 0 | 0,001 | 0,860 | 80,1% | 2,5% | 0 |
 | fev/26 | Estável | 0 | 0,002 | 0,857 | 79,9% | 2,5% | 0 |
 | mar/26 | Estável (atenção) | 0 | 0,048 | 0,832 | 76,7% | 2,7% | 2 |
-| abr/26 | Data drift | 1 — `age` | 0,174 | 0,850 | 72,7% | 2,6% | 5 (inclui 1 entrega bloqueada) |
-| mai/26 | Data drift + degradação | 3 — `age`, `revolving_utilization`, `monthly_income` | 0,291 | 0,739 | 70,4% | 5,6% | 7 |
-| jun/26 | Data drift + degradação | 4 — as anteriores + `debt_ratio` | 0,415 | **0,677** | 68,4% | **9,2%** | 7 |
+| abr/26 | Data drift | 1: `age` | 0,174 | 0,850 | 72,7% | 2,6% | 5 (inclui 1 entrega bloqueada) |
+| mai/26 | Data drift + degradação | 3: `age`, `revolving_utilization`, `monthly_income` | 0,291 | 0,739 | 70,4% | 5,6% | 7 |
+| jun/26 | Data drift + degradação | 4: as anteriores + `debt_ratio` | 0,415 | **0,677** | 68,4% | **9,2%** | 7 |
 
 Três coisas que os números mostram:
 
@@ -85,7 +92,7 @@ flowchart LR
 | Contrato de dados | Pandera | Contrato como código Python, validação *lazy* (todas as falhas de uma vez) |
 | Drift | Evidently AI + implementação própria de PSI/KS | Evidently gera o relatório visual; a implementação própria alimenta alertas e é testável |
 | Rastreamento | MLflow (tracking + Model Registry) | Linha do tempo auditável: um run de treino + um run por lote |
-| Métricas | `prometheus-client` (arquivo `.prom`) | Gancho com a stack Prometheus + Grafana da Fase 3 |
+| Métricas | `prometheus-client` (arquivo `.prom`) | Permite levar as mesmas métricas para Prometheus + Grafana |
 | Logs | JSON Lines | Formato que Datadog, Loki e CloudWatch ingerem sem parser |
 | Dashboard | HTML + SVG estático (Jinja2) | Abre offline, sem servidor; serve de evidência versionada |
 
@@ -100,7 +107,7 @@ cd credit-scoring-observability
 make install        # cria .venv e instala (ou: uv sync)
 make pipeline       # ~25 s: ingestão, treino, 6 lotes monitorados, relatórios
 make contract-demo  # o contrato aceitando um lote bom e bloqueando um ruim
-make mlflow-ui      # http://127.0.0.1:5000 — experimento credit-scoring-observability
+make mlflow-ui      # http://127.0.0.1:5000, experimento credit-scoring-observability
 make test           # 42 testes, 93% de cobertura
 ```
 
@@ -112,14 +119,14 @@ Depois abra `reports/dashboard.html` no navegador.
 150.000 clientes, 10 features e o rótulo "inadimplência grave nos próximos dois anos" (6,7% de
 positivos). Foi escolhido porque atende ao mínimo de 5.000 amostras, tem as variáveis que fazem
 sentido econômico para simular drift (renda, idade, uso do rotativo, comprometimento de renda) e
-chega **sujo de verdade** — o que dá trabalho real ao contrato de dados.
+chega **sujo de verdade**, o que dá trabalho real ao contrato de dados.
 
 **Separação Referência × Produção** (`src/credit_monitor/data/prepare.py`):
 
 | Conjunto | Linhas | Uso |
 |---|---:|---|
-| Referência — treino | 52.869 | Treina o modelo |
-| Referência — holdout | 17.623 | Mede o modelo e serve de régua para drift e performance |
+| Referência (treino) | 52.869 | Treina o modelo |
+| Referência (holdout) | 17.623 | Mede o modelo e serve de régua para drift e performance |
 | Pool do futuro | 46.995 | Matéria-prima dos lotes de produção; o modelo nunca vê |
 | Quarentena | 32.513 | Linhas brutas barradas pelo contrato |
 
@@ -127,7 +134,7 @@ A referência nunca é misturada com produção: o holdout tem a mesma distribui
 foi visto pelo modelo, então é uma régua justa tanto para "a população mudou?" quanto para "o modelo
 piorou?".
 
-## Etapa 1 — Validação de dados e contrato
+## Validação de dados e contrato
 
 Contrato em [`src/credit_monitor/contracts/credit_contract.py`](src/credit_monitor/contracts/credit_contract.py)
 (versão 1.0.0). Qualquer violação bloqueia o lote inteiro antes da inferência.
@@ -140,17 +147,17 @@ Contrato em [`src/credit_monitor/contracts/credit_contract.py`](src/credit_monit
 | 4 | `debt_ratio` entre 0 e 10 | Acima disso é sintoma de renda ausente ou zerada na origem |
 | 5 | `revolving_utilization` entre 0 e 2 | O bruto chega a 50.708 (erro de unidade) |
 | 6 | Contadores de atraso entre 0 e 20 | 96 e 98 são códigos-sentinela, não contagens |
-| 7 | `dependents` não nulo, entre 0 e 20 | — |
+| 7 | `dependents` não nulo, entre 0 e 20 | Campo usado pelo modelo; nulo indica cadastro incompleto |
 | 8 | Nenhuma linha inteiramente duplicada | Reprocessamento de job na origem |
 | 9 | `strict=True`: coluna fora do contrato bloqueia | Impede que `cpf`, `nome` etc. cheguem à camada analítica |
 | 10 | `coerce=False`: tipo errado é erro | Nada é "consertado" em silêncio |
 
 O contrato atua em dois pontos, com políticas diferentes:
 
-- **Curadoria da referência** — política *por linha*: linhas boas seguem, linhas ruins vão para
+- **Curadoria da referência**, com política *por linha*: linhas boas seguem, linhas ruins vão para
   quarentena com a regra violada registrada. Resultado: 32.513 de 150.000 linhas (21,7%) barradas,
   sendo 29.731 por renda nula.
-- **Portão de produção** — política *por lote*: uma violação bloqueia o lote todo. Em abril/2026 o
+- **Portão de produção**, com política *por lote*: uma violação bloqueia o lote todo. Em abril/2026 o
   pipeline recebe uma entrega defeituosa (renda nula e negativa, idade 0 e 16, sentinela 98,
   duplicatas e uma coluna `cpf`); o contrato levanta `DataContractError`, o lote vai para quarentena,
   um alerta crítico é emitido e só a entrega corrigida segue para o modelo.
@@ -159,7 +166,7 @@ O contrato atua em dois pontos, com políticas diferentes:
 $ make contract-demo
 1) Lote LIMPO  -> contrato OK (2000 linhas)
 2) Lote COM ERROS (entrega defeituosa do sistema de origem)
-   INGESTÃO BLOQUEADA: lote demo-defeituoso: contrato VIOLADO — 301 falhas em 2040 linhas
+   INGESTÃO BLOQUEADA: lote demo-defeituoso: contrato VIOLADO: 301 falhas em 2040 linhas
    Violações por regra:
      - monthly_income: not_nullable                    100
      - client_id: field_uniqueness                      80
@@ -176,7 +183,7 @@ No holdout: AUC 0,854, KS 0,560 (regressão logística de comparação: AUC 0,84
 (score ≥ 0,084 nega) é o que aprova 80% da carteira de treino. As variáveis mais importantes são os
 três contadores de atraso e a utilização do rotativo.
 
-## Etapa 2 — Simulação e detecção de drift
+## Simulação e detecção de drift
 
 ### Simulação (`src/credit_monitor/drift/simulate.py`)
 
@@ -196,9 +203,9 @@ de estresse deliberadamente forte, para exercitar o monitoramento.
 
 Duas medidas complementares por variável, sempre contra a referência:
 
-- **PSI** (*Population Stability Index*) — tamanho do efeito. Limiares: < 0,10 estável; 0,10 a 0,20
+- **PSI** (*Population Stability Index*): tamanho do efeito. Limiares: < 0,10 estável; 0,10 a 0,20
   atenção; ≥ 0,20 crítico. É a métrica que dispara alertas.
-- **Kolmogorov-Smirnov** — teste de hipótese (α = 0,05) com a estatística D. Com 6.000 linhas por
+- **Kolmogorov-Smirnov**: teste de hipótese (α = 0,05) com a estatística D. Com 6.000 linhas por
   lote o p-valor fica sensível demais: de março em diante o KS rejeita H0 em 8 das 11 colunas,
   inclusive em variáveis com PSI de 0,01 que só mudaram por correlação com a idade. Por isso o KS
   entra como evidência, e a decisão de alertar fica com o PSI.
@@ -219,10 +226,10 @@ PSI por variável e por mês (execução versionada):
 O relatório do **Evidently AI** de cada lote (`reports/evidently/`) traz os mesmos testes com
 histogramas por variável, mais a qualidade de classificação comparada com a referência. Os PSIs do
 Evidently e os da implementação própria concordam nas features (por exemplo, `age` em junho: 0,522 e
-0,464); a diferença vem da escolha de bins — o PSI depende dela, e por isso o projeto fixa a regra
+0,464); a diferença vem da escolha de bins. O PSI depende dela, e por isso o projeto fixa a regra
 (decis da referência; um bin por valor em variáveis discretas).
 
-## Etapa 3 — Observabilidade de pipelines e modelos
+## Observabilidade de pipelines e modelos
 
 ### Logs centralizados
 
@@ -250,10 +257,10 @@ linha JSON com status, duração, CPU, memória e volume. Três arquivos:
 | Grupo | Métrica | Fonte | Limiar / SLO | Valor na execução |
 |---|---|---|---|---|
 | Pipeline | Status de cada tarefa (sucesso/falha) | `tasks.jsonl` | 0 falhas inesperadas | 49 sucessos, 1 falha (o bloqueio esperado do contrato) |
-| Pipeline | Duração por tarefa e total | `tasks.jsonl` | — | 22 s no total |
+| Pipeline | Duração por tarefa e total | `tasks.jsonl` | acompanhamento | 22 s no total |
 | Pipeline | Volume por lote (`rows`) | `tasks.jsonl` | ≥ 5.000 linhas | 6.000 em todos |
 | Infraestrutura | Latência de inferência por 1.000 linhas | `score_batch` | ≤ 50 ms | pior lote: 2,9 ms |
-| Infraestrutura | Pico de memória do processo | `max_rss_mb` | — | ~820 MB |
+| Infraestrutura | Pico de memória do processo | `max_rss_mb` | acompanhamento | ~820 MB |
 | Qualidade | Entregas bloqueadas pelo contrato | `validate_contract` | alerta crítico a cada bloqueio | 1 (abr/26) |
 | Qualidade | Lotes inválidos que chegaram ao modelo | pipeline | 0 | 0 |
 | Drift | PSI por feature | `detect_drift` | atenção ≥ 0,10; crítico ≥ 0,20 | ver tabela acima |
@@ -261,7 +268,7 @@ linha JSON com status, duração, CPU, memória e volume. Três arquivos:
 | Drift | PSI do score (drift de predição) | `detect_drift` | atenção ≥ 0,10; crítico ≥ 0,20 | 0,415 em jun/26 |
 | Modelo | Queda de AUC contra a referência | `evaluate_with_labels` | atenção ≥ 0,02; crítico ≥ 0,05 | 0,177 em jun/26 |
 | Modelo | Taxa de aprovação e inadimplência nos aprovados | `evaluate_with_labels` | acompanhamento | 68,4% e 9,2% em jun/26 |
-| Alertas | Quantidade por lote e severidade | `alerts.jsonl` | — | 21 (15 críticos) |
+| Alertas | Quantidade por lote e severidade | `alerts.jsonl` | acompanhamento | 21 (15 críticos) |
 
 Tipos de alerta: `DATA_CONTRACT_VIOLATION`, `FEATURE_DRIFT`, `DATASET_DRIFT`, `PREDICTION_DRIFT` e
 `PERFORMANCE_DEGRADATION`. Todo alerta carrega a ação recomendada.
@@ -272,13 +279,13 @@ Tipos de alerta: `DATA_CONTRACT_VIOLATION`, `FEATURE_DRIFT`, `DATASET_DRIFT`, `P
 saúde do modelo, mapa de PSI por variável e mês, distribuições referência × produção, tabela de
 alertas, resultado do contrato, SLOs, tarefas do pipeline, análise causal, retreino e viés.
 
-### Integração com a Fase 3 (opcional)
+### Integração com Prometheus e Grafana (opcional)
 
 `reports/metrics.prom` expõe as métricas como *gauges* (`credit_feature_psi`, `credit_model_auc`,
 `credit_alerts`, `credit_pipeline_tasks` …). Basta apontar o *textfile collector* do node_exporter
 para o arquivo, ou enviá-lo a um Pushgateway, para ter os mesmos números no Grafana.
 
-## Etapa 4 — Governança
+## Governança
 
 ### Plano de proteção de dados (LGPD)
 
@@ -293,7 +300,7 @@ para o arquivo, ou enviá-lo a um Pushgateway, para ter os mesmos números no Gr
 
 Pontos de atenção:
 
-- **Pseudonimização não é anonimização.** Quem tem o sal consegue religar o pseudônimo ao cliente —
+- **Pseudonimização não é anonimização.** Quem tem o sal consegue religar o pseudônimo ao cliente,
   o que é desejável (permite atender pedidos do titular), mas mantém o dado sob a LGPD (art. 12 e
   art. 13, §4º).
 - **Relatórios e logs só têm agregados.** PSI, histogramas e métricas não expõem registros
@@ -305,10 +312,10 @@ Pontos de atenção:
 
 | Tratamento | Base legal (LGPD) |
 |---|---|
-| Análise e concessão de crédito | **Proteção do crédito** — art. 7º, X, em conjunto com a Lei 12.414/2011 (Cadastro Positivo) e o CDC, art. 43 |
-| Coleta dos dados no pedido de crédito | **Procedimentos preliminares a contrato, a pedido do titular** — art. 7º, V |
-| Monitoramento de drift e retreino do modelo | Mesma finalidade (manter a decisão de crédito correta); se tratado como finalidade secundária, **legítimo interesse** — art. 7º, IX, com teste de balanceamento documentado |
-| Guarda para auditoria e regulador | **Cumprimento de obrigação legal ou regulatória** — art. 7º, II |
+| Análise e concessão de crédito | **Proteção do crédito** (art. 7º, X), em conjunto com a Lei 12.414/2011 (Cadastro Positivo) e o CDC, art. 43 |
+| Coleta dos dados no pedido de crédito | **Procedimentos preliminares a contrato, a pedido do titular** (art. 7º, V) |
+| Monitoramento de drift e retreino do modelo | Mesma finalidade (manter a decisão de crédito correta); se tratado como finalidade secundária, **legítimo interesse** (art. 7º, IX), com teste de balanceamento documentado |
+| Guarda para auditoria e regulador | **Cumprimento de obrigação legal ou regulatória** (art. 7º, II) |
 
 Não se usa consentimento como base: ele poderia ser revogado a qualquer momento, o que é
 incompatível com uma operação de crédito em curso.
@@ -338,7 +345,7 @@ Os prazos são uma proposta de política para o cenário fictício; em uma insti
 validados pelo jurídico e pelo encarregado (DPO) contra as normas do Banco Central aplicáveis. A
 eliminação ao fim do tratamento segue os arts. 15 e 16.
 
-**5. Privacy by Design e by Default — como cada princípio aparece no código**
+**5. Privacy by Design e by Default: como cada princípio aparece no código**
 
 | Princípio | Onde está |
 |---|---|
@@ -371,7 +378,7 @@ Impacto desproporcional = aprovação da faixa ÷ aprovação da faixa mais apro
 (regra dos 80%) é sinal de alerta.
 
 O achado é desconfortável e fica registrado: **o modelo já nasce abaixo de 0,80 para quem tem menos
-de 45 anos, e o drift piora o quadro** — justamente quando a fintech passa a captar mais jovens
+de 45 anos, e o drift piora o quadro**, justamente quando a fintech passa a captar mais jovens
 (de 6% para 20% da carteira). Parte da diferença reflete risco real (a inadimplência dos mais jovens
 é maior na referência: 11,1% contra 3,5% dos 60+), mas a taxa de bons pagadores negados entre 18 e
 29 anos é mais que o triplo da observada nos 60+.
@@ -382,7 +389,7 @@ Plano de mitigação:
 2. Avaliar o modelo **sem a feature idade** e medir o custo em AUC contra o ganho em equidade.
 3. Se a idade for mantida, calibrar limiares por faixa só com respaldo jurídico; a alternativa mais
    segura é a revisão humana obrigatória para negativas nas faixas abaixo de 0,80.
-4. Reavaliar a cada retreino — retreinar com dados recentes pode amplificar o viés.
+4. Reavaliar a cada retreino: retreinar com dados recentes pode amplificar o viés.
 5. Lembrar que tirar a variável não basta: outras features (linhas de crédito, imóveis) são
    correlacionadas com idade e podem funcionar como *proxy*.
 
@@ -395,7 +402,7 @@ drift é simulado, dá para fazer o que não se faz na economia real: **intervir
 
 | Intervenção | Features em drift crítico | PSI do score | AUC | Δ AUC | Δ aprovação | Inadimplência nos aprovados |
 |---|---|---:|---:|---:|---:|---:|
-| Controle (nada muda) | — | 0,002 | 0,863 | — | — | 2,7% |
+| Controle (nada muda) | nenhuma | 0,002 | 0,863 | 0 | 0 | 2,7% |
 | Só inflação da renda | `monthly_income` | 0,003 | 0,860 | −0,003 | +0,6 p.p. | 2,7% |
 | Só estresse de crédito | `revolving_utilization`, `debt_ratio` | 0,242 | 0,858 | −0,005 | **−7,4 p.p.** | 2,3% |
 | Só novo perfil (jovens) | `age` | 0,039 | 0,849 | −0,014 | −5,3 p.p. | 2,9% |
@@ -410,7 +417,7 @@ Conclusões:
 - **A queda de aprovação é causada pelo data drift.** Estresse de crédito (−7,4 p.p.) e novo perfil
   (−5,3 p.p.) explicam os −11,5 p.p.; o choque não altera a aprovação.
 - **Alarme não é dano.** A inflação da renda dispara drift crítico em `monthly_income` e praticamente
-  não afeta o modelo — a variável pesa só 1,8% na importância.
+  não afeta o modelo: a variável pesa só 1,8% na importância.
 - **Dano não gera alarme.** O mecanismo mais destrutivo não move nenhuma feature nem o score. Nenhum
   teste de distribuição o detecta; só a chegada do rótulo revela o problema. Daí a necessidade de
   monitorar performance com rótulo tardio e não só drift.
@@ -426,7 +433,7 @@ segmento.
 | Sinal | Ação imediata | Ação estrutural |
 |---|---|---|
 | Contrato violado | Bloquear o lote, quarentena, acionar o time de origem | Versionar o contrato; rodar a mesma validação no produtor |
-| Drift de feature em atenção | Investigar a origem; aumentar a frequência de checagem | — |
+| Drift de feature em atenção | Investigar a origem; aumentar a frequência de checagem | Registrar a causa encontrada |
 | Drift crítico ou de dataset | Abrir incidente; separar mudança real de defeito de pipeline | Revisar a política de crédito para o novo público |
 | Drift de predição | Rever o limiar de aprovação | Priorizar a coleta de rótulos recentes |
 | Degradação de performance | Reforçar a análise manual nas faixas de score afetadas | Retreinar com janela recente e validar fora do tempo |
@@ -442,8 +449,25 @@ maio, avaliado em junho, que ficou fora do treino.
 
 O retreino ajuda, mas recupera só parte da perda (AUC de 0,677 para 0,701): o choque atinge clientes
 que, pelas features disponíveis, são indistinguíveis dos bons pagadores. A prescrição honesta é que
-**retreinar não basta** — é preciso trazer variáveis que capturem o novo mecanismo (vínculo
+**retreinar não basta**: é preciso trazer variáveis que capturem o novo mecanismo (vínculo
 empregatício, setor de atividade) e, enquanto isso, apertar a política de crédito.
+
+## Como adaptar ao seu modelo
+
+O projeto usa crédito como exemplo, mas a estrutura vale para qualquer classificador tabular.
+
+1. **Colunas e limiares**: ajuste `FEATURES`, `TARGET` e os limiares de PSI, AUC e SLO em
+   `src/credit_monitor/config.py`.
+2. **Contrato**: reescreva as regras de `contracts/credit_contract.py` a partir de um perfil do seu
+   dado bruto. Cada limite deve ter uma linha real que o justifique.
+3. **Lotes de produção**: troque o simulador (`drift/simulate.py`) pela leitura dos seus lotes reais.
+   O restante do pipeline só precisa de um DataFrame por período, mais os rótulos quando chegarem.
+4. **Referência**: mantenha uma fatia da base de treino que o modelo não viu. Ela é a régua para
+   drift e para performance.
+5. **Alertas**: revise as ações recomendadas em `monitoring/alerts.py` para o processo do seu time.
+
+O simulador continua útil depois da troca: serve para testar se o seu monitoramento dispara quando
+deveria, antes de um drift real acontecer.
 
 ## Estrutura do repositório
 
@@ -455,20 +479,20 @@ credit-scoring-observability/
 │   ├── pipeline.py                # orquestra tudo de ponta a ponta
 │   ├── data/prepare.py            # download, pseudonimização, referência x produção
 │   ├── contracts/
-│   │   ├── credit_contract.py     # contrato Pandera (Etapa 1)
+│   │   ├── credit_contract.py     # contrato Pandera
 │   │   └── demo.py                # lote bom passa, lote ruim é bloqueado
 │   ├── models/train.py            # baseline XGBoost + métricas de crédito
 │   ├── drift/
-│   │   ├── simulate.py            # mecanismos de drift e cronograma mensal (Etapa 2)
+│   │   ├── simulate.py            # mecanismos de drift e cronograma mensal
 │   │   ├── stats.py               # PSI e Kolmogorov-Smirnov
 │   │   └── detect.py              # relatório Evidently
 │   ├── monitoring/
 │   │   ├── alerts.py              # regras de alerta e diagnóstico
-│   │   ├── tracking.py            # MLflow e exportação Prometheus (Etapa 3)
+│   │   ├── tracking.py            # MLflow e exportação Prometheus
 │   │   ├── dashboard.py           # dashboard HTML
 │   │   └── templates/dashboard.html.j2
 │   └── analysis/
-│       ├── causal.py              # intervenções e experimento de retreino (Etapa 4)
+│       ├── causal.py              # intervenções e experimento de retreino
 │       └── fairness.py            # viés por faixa etária
 ├── tests/                         # 42 testes (dados sintéticos; inclui ponta a ponta)
 ├── reports/                       # evidências versionadas (dashboard, Evidently, logs)
@@ -482,12 +506,15 @@ credit-scoring-observability/
 - O drift é **simulado**; as intensidades são um cenário de estresse, não uma previsão.
 - O rótulo de cada lote fica disponível na hora. Em crédito real ele demora meses, e é nesse
   intervalo que o drift de predição é o único sinal.
-- Lotes mensais em arquivo: não há streaming, API de inferência nem orquestrador (a Fase 3 cobriu
-  Airflow, FastAPI e Grafana; aqui o foco é a camada de monitoramento).
+- Lotes mensais em arquivo: não há streaming, API de inferência nem orquestrador. O foco é a
+  camada de monitoramento; cada tarefa do pipeline pode virar uma task de Airflow sem mudar a lógica.
 - Os prazos de retenção e as bases legais são uma proposta para um cenário fictício e não
   substituem parecer jurídico.
 
 ## Licença e créditos
+
+O projeto nasceu como trabalho de uma pós-graduação em Machine Learning Engineering e foi
+organizado para servir de referência a quem monta monitoramento de modelos.
 
 Código sob licença MIT. Dataset: Credit Fusion e Will Cukierski, *Give Me Some Credit*, Kaggle, 2011,
 via OpenML (id 46929).

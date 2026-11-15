@@ -1,7 +1,7 @@
 [project]
 name = "credit-scoring-observability"
 version = "0.1.0"
-description = "Observabilidade contínua, detecção de drift, contratos de dados e governança (LGPD) para um modelo de Credit Scoring — Tech Challenge FIAP MLET Fase 4."
+description = "Observabilidade contínua, detecção de drift, contratos de dados e governança (LGPD) para um modelo de Credit Scoring."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
