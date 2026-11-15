@@ -106,11 +106,11 @@ credit_batch_rows{batch="2026-05"} 6000.0
 credit_batch_rows{batch="2026-06"} 6000.0
 # HELP credit_inference_latency_ms_per_1k Latência de inferência por 1.000 linhas
 # TYPE credit_inference_latency_ms_per_1k gauge
-credit_inference_latency_ms_per_1k{batch="2026-01"} 1.65
-credit_inference_latency_ms_per_1k{batch="2026-02"} 1.9
-credit_inference_latency_ms_per_1k{batch="2026-03"} 2.18
-credit_inference_latency_ms_per_1k{batch="2026-04"} 2.49
-credit_inference_latency_ms_per_1k{batch="2026-05"} 2.81
+credit_inference_latency_ms_per_1k{batch="2026-01"} 1.72
+credit_inference_latency_ms_per_1k{batch="2026-02"} 1.85
+credit_inference_latency_ms_per_1k{batch="2026-03"} 2.29
+credit_inference_latency_ms_per_1k{batch="2026-04"} 2.78
+credit_inference_latency_ms_per_1k{batch="2026-05"} 2.85
 credit_inference_latency_ms_per_1k{batch="2026-06"} 2.85
 # HELP credit_contract_blocked_deliveries Entregas bloqueadas pelo contrato
 # TYPE credit_contract_blocked_deliveries gauge

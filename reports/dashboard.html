@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Observabilidade — Credit Scoring</title>
+<title>Observabilidade do Credit Scoring</title>
 <style>
 :root {
   color-scheme: light;
@@ -106,7 +106,7 @@ ul.plain { margin: 0; padding-left: 18px; }
   <h1>Observabilidade do modelo de Credit Scoring</h1>
   <p class="sub">Saúde dos dados, do modelo e do pipeline em seis lotes mensais de produção,
   comparados com a referência de treino (safra de treino 2025).</p>
-  <p class="meta">Execução <code>f1f8002e403c</code> · gerado em 2026-11-15T17:50:15+00:00
+  <p class="meta">Execução <code>d864d3fb178f</code> · gerado em 2026-11-15T18:27:42+00:00
   · referência: 52.869 linhas de treino +
   17.623 de holdout</p>
 
@@ -118,7 +118,7 @@ ul.plain { margin: 0; padding-left: 18px; }
     <div>
       <span class="badge critical">✕ Crítico</span>
       <p class="sub" style="margin:6px 0 0">Na referência o AUC era 0,854.
-      Queda de 0,177 — diagnóstico do lote:
+      Queda de 0,177. Diagnóstico do lote:
       <strong>Data drift + degradação de performance</strong>.</p>
     </div>
   </div>
@@ -138,7 +138,7 @@ ul.plain { margin: 0; padding-left: 18px; }
       <div class="note">era 2,5% na referência</div></div>
     <div class="card tile"><div class="label">Tarefas do pipeline</div>
       <div class="value">49/50</div>
-      <div class="note">1 falha(s) · 22,23 s no total</div></div>
+      <div class="note">1 falha(s) · 23,13 s no total</div></div>
   </div>
 
   <h2>Saúde do modelo ao longo do tempo</h2>
@@ -257,7 +257,7 @@ ul.plain { margin: 0; padding-left: 18px; }
         <td>Degradação de performance</td><td>AUC caiu de 0.854 (referência) para 0.832 (queda de 0.022)</td><td>Degradação confirmada com rótulos: retreinar com janela recente e reavaliar antes de promover (ver README, plano de mitigação).</td></tr>
         <tr><td>abr/26</td>
         <td><span class="badge critical">✕ Crítico</span></td>
-        <td>Contrato de dados violado</td><td>contrato VIOLADO — 910 falhas em 6120 linhas (monthly_income: not_nullable: 306; client_id: field_uniqueness: 240; linha inteiramente duplicada: 120; age: in_range(18, 100): 91; debt_ratio: in_range(0, 10): 61; late_90_days: in_range(0, 20): 60; monthly_income: greater_than(0): 31; coluna fora do contrato: cpf: 1)</td><td>Lote bloqueado e enviado à quarentena. Acionar o time dono da origem e reprocessar após a correção.</td></tr>
+        <td>Contrato de dados violado</td><td>contrato VIOLADO: 910 falhas em 6120 linhas (monthly_income: not_nullable: 306; client_id: field_uniqueness: 240; linha inteiramente duplicada: 120; age: in_range(18, 100): 91; debt_ratio: in_range(0, 10): 61; late_90_days: in_range(0, 20): 60; monthly_income: greater_than(0): 31; coluna fora do contrato: cpf: 1)</td><td>Lote bloqueado e enviado à quarentena. Acionar o time dono da origem e reprocessar após a correção.</td></tr>
         <tr><td>abr/26</td>
         <td><span class="badge critical">✕ Crítico</span></td>
         <td>Drift de feature</td><td>Idade (age): PSI=0.279, KS D=0.250, média -12.4% vs. referência</td><td>Abrir incidente: confirmar se a mudança é real (economia/público) ou defeito de pipeline.</td></tr>
@@ -392,8 +392,8 @@ ul.plain { margin: 0; padding-left: 18px; }
 </tbody>
       </table>
       <p class="meta" style="margin-top:12px">Pico de memória do processo:
-      816 MB · duração total:
-      22,23 s</p>
+      826 MB · duração total:
+      23,13 s</p>
     </div>
     <div class="card table-wrap">
       <h3>Tarefas executadas</h3>
@@ -401,46 +401,46 @@ ul.plain { margin: 0; padding-left: 18px; }
         <thead><tr><th>Tarefa</th><th class="num">Execuções</th><th class="num">Falhas</th><th class="num">Média (ms)</th><th class="num">Máx. (ms)</th></tr></thead>
         <tbody>          <tr><td>Ingestão do bruto + contrato</td><td class="num">1</td>
           <td class="num">0</td>
-          <td class="num">785</td><td class="num">785</td></tr>
+          <td class="num">815</td><td class="num">815</td></tr>
           <tr><td>Treino do baseline</td><td class="num">1</td>
           <td class="num">0</td>
-          <td class="num">626</td><td class="num">626</td></tr>
+          <td class="num">672</td><td class="num">672</td></tr>
           <tr><td>Registro do treino no MLflow</td><td class="num">1</td>
           <td class="num">0</td>
-          <td class="num">3.180</td><td class="num">3.180</td></tr>
+          <td class="num">3.379</td><td class="num">3.379</td></tr>
           <tr><td>Extração do lote mensal</td><td class="num">6</td>
           <td class="num">0</td>
-          <td class="num">27</td><td class="num">29</td></tr>
+          <td class="num">28</td><td class="num">31</td></tr>
           <tr><td>Validação do contrato</td><td class="num">7</td>
           <td class="num"><span class="badge critical">✕ 1</span></td>
-          <td class="num">32</td><td class="num">113</td></tr>
+          <td class="num">33</td><td class="num">120</td></tr>
           <tr><td>Inferência (score)</td><td class="num">6</td>
           <td class="num">0</td>
-          <td class="num">13</td><td class="num">17</td></tr>
+          <td class="num">14</td><td class="num">17</td></tr>
           <tr><td>Detecção de drift (PSI/KS)</td><td class="num">6</td>
           <td class="num">0</td>
-          <td class="num">58</td><td class="num">69</td></tr>
+          <td class="num">62</td><td class="num">73</td></tr>
           <tr><td>Avaliação com rótulos</td><td class="num">6</td>
           <td class="num">0</td>
-          <td class="num">31</td><td class="num">32</td></tr>
+          <td class="num">32</td><td class="num">35</td></tr>
           <tr><td>Relatório Evidently</td><td class="num">6</td>
           <td class="num">0</td>
-          <td class="num">2.401</td><td class="num">2.553</td></tr>
+          <td class="num">2.498</td><td class="num">2.670</td></tr>
           <tr><td>Registro do lote no MLflow</td><td class="num">6</td>
           <td class="num">0</td>
-          <td class="num">56</td><td class="num">67</td></tr>
+          <td class="num">54</td><td class="num">58</td></tr>
           <tr><td>Análise causal + retreino</td><td class="num">1</td>
           <td class="num">0</td>
-          <td class="num">1.451</td><td class="num">1.451</td></tr>
+          <td class="num">1.457</td><td class="num">1.457</td></tr>
           <tr><td>Checagem de viés</td><td class="num">1</td>
           <td class="num">0</td>
-          <td class="num">15</td><td class="num">15</td></tr>
+          <td class="num">16</td><td class="num">16</td></tr>
           <tr><td>Exportação Prometheus</td><td class="num">1</td>
           <td class="num">0</td>
           <td class="num">2</td><td class="num">2</td></tr>
           <tr><td>Geração do dashboard</td><td class="num">1</td>
           <td class="num">0</td>
-          <td class="num">37</td><td class="num">37</td></tr>
+          <td class="num">41</td><td class="num">41</td></tr>
 </tbody>
       </table>
       <p class="meta" style="margin-top:8px">A falha em "Validação do contrato" é esperada:
@@ -455,7 +455,7 @@ ul.plain { margin: 0; padding-left: 18px; }
   <div class="card table-wrap">
     <table>
       <thead><tr><th>Intervenção</th><th>Features em drift crítico</th><th class="num">PSI do score</th><th class="num">AUC</th><th class="num">Δ AUC</th><th class="num">Aprovação</th><th class="num">Δ aprovação (p.p.)</th><th class="num">Inadimpl. aprovados</th></tr></thead>
-      <tbody>        <tr><td>Controle (nada muda)</td><td><code>—</code></td>
+      <tbody>        <tr><td>Controle (nada muda)</td><td><code>nenhuma</code></td>
         <td class="num">0,002</td><td class="num">0,863</td>
         <td class="num">+0,000</td>
         <td class="num">79,9%</td>
@@ -479,7 +479,7 @@ ul.plain { margin: 0; padding-left: 18px; }
         <td class="num">74,7%</td>
         <td class="num">-5,3</td>
         <td class="num">2,9%</td></tr>
-        <tr><td>Só choque de desemprego (conceito)</td><td><code>—</code></td>
+        <tr><td>Só choque de desemprego (conceito)</td><td><code>nenhuma</code></td>
         <td class="num">0,002</td><td class="num">0,678</td>
         <td class="num">-0,185</td>
         <td class="num">79,9%</td>
