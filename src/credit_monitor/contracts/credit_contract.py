@@ -161,7 +161,14 @@ def validate(df: pd.DataFrame, *, with_target: bool = False) -> ValidationResult
     except pa.errors.SchemaErrors as exc:
         cases = exc.failure_cases.copy()
         cases["rule"] = cases.apply(_rule_name, axis=1)
-        by_rule = cases.groupby("rule").size().sort_values(ascending=False).to_dict()
+        # Conta linhas distintas por regra (uma checagem de DataFrame reporta a mesma
+        # linha uma vez por coluna); falhas sem índice (ex.: coluna extra) contam 1.
+        by_rule = (
+            cases.groupby("rule")["index"]
+            .agg(lambda idx: max(idx.nunique(), 1))
+            .sort_values(ascending=False)
+            .to_dict()
+        )
         examples = (
             cases.groupby("rule")
             .head(1)[["rule", "failure_case", "index"]]
@@ -172,7 +179,7 @@ def validate(df: pd.DataFrame, *, with_target: bool = False) -> ValidationResult
         return ValidationResult(
             passed=False,
             rows=len(df),
-            n_failures=len(cases),
+            n_failures=int(sum(by_rule.values())),
             failures_by_rule={str(k): int(v) for k, v in by_rule.items()},
             examples=examples,
             invalid_index=invalid,
