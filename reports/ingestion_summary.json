@@ -1,0 +1,25 @@
+{
+  "contract_version": "1.0.0",
+  "rows_raw": 150000,
+  "rows_valid": 117487,
+  "rows_quarantined": 32513,
+  "pct_quarantined": 21.68,
+  "failures_by_rule": {
+    "monthly_income: not_nullable": 29731,
+    "dependents: not_nullable": 3924,
+    "debt_ratio: in_range(0, 10)": 2106,
+    "monthly_income: greater_than(0)": 1634,
+    "revolving_utilization: in_range(0, 2)": 278,
+    "late_30_59_days: in_range(0, 20)": 148,
+    "late_90_days: in_range(0, 20)": 148,
+    "late_60_89_days: in_range(0, 20)": 148,
+    "monthly_income: less_than_or_equal_to(100000)": 70,
+    "age: in_range(18, 100)": 7
+  },
+  "rows_reference_train": 52869,
+  "rows_reference_holdout": 17623,
+  "rows_future_pool": 46995,
+  "default_rate_raw": 0.0668,
+  "default_rate_valid": 0.0692,
+  "default_rate_quarantined": 0.0582
+}

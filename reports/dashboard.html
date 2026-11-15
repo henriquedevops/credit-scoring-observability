@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Observabilidade — Credit Scoring</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --series-1: #2a78d6; --series-2: #eb6834;
+  --good: #0ca30c; --warning: #fab219; --critical: #d03b3b;
+  --good-wash: rgba(12,163,12,0.10); --warning-wash: rgba(250,178,25,0.20);
+  --critical-wash: rgba(208,59,59,0.12);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5; --series-2: #d95926;
+    --good-wash: rgba(12,163,12,0.18); --warning-wash: rgba(250,178,25,0.18);
+    --critical-wash: rgba(208,59,59,0.22);
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 24px; margin: 0 0 4px; }
+h2 { font-size: 18px; margin: 40px 0 4px; }
+h3 { font-size: 14px; margin: 0 0 2px; }
+p { margin: 0 0 12px; }
+.sub { color: var(--ink-2); max-width: 78ch; }
+.meta { color: var(--muted); font-size: 12px; }
+code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+a { color: var(--series-1); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px; }
+.grid { display: grid; gap: 12px; }
+.tiles { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-top: 16px; }
+.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 760px) { .cols-2 { grid-template-columns: 1fr; } }
+.cols-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.tile .label { color: var(--ink-2); font-size: 12px; }
+.tile .value { font-size: 26px; font-weight: 600; line-height: 1.2; }
+.tile .note { color: var(--muted); font-size: 12px; }
+.hero { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+.hero .value { font-size: 48px; font-weight: 600; line-height: 1; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px;
+  border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--ink); }
+.badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; }
+.badge.ok { background: var(--good-wash); } .badge.ok::before { background: var(--good); }
+.badge.warning { background: var(--warning-wash); }
+.badge.warning::before { background: var(--warning); }
+.badge.critical { background: var(--critical-wash); }
+.badge.critical::before { background: var(--critical); }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--grid);
+  vertical-align: top; }
+th { color: var(--ink-2); font-weight: 600; font-size: 12px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.heat td.cell { text-align: center; font-variant-numeric: tabular-nums; padding: 3px; border: 0; }
+.heat td.cell span { display: block; padding: 6px 4px; border-radius: 6px; cursor: default; }
+.heat .ok span { background: var(--good-wash); }
+.heat .warning span { background: var(--warning-wash); box-shadow: inset 0 0 0 1.5px var(--warning); }
+.heat .critical span { background: var(--critical-wash); box-shadow: inset 0 0 0 1.5px var(--critical);
+  font-weight: 600; }
+.heat tr.score td { border-top: 1px solid var(--axis); }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2);
+  margin: 4px 0 8px; }
+.legend i { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--series-1);
+  vertical-align: middle; margin-right: 6px; }
+.legend i.s2 { border-color: var(--series-2); }
+svg { width: 100%; height: auto; display: block; overflow: visible; }
+svg text { font: 11px system-ui, sans-serif; fill: var(--muted); }
+svg text.endlabel { fill: var(--ink); font-weight: 600; font-size: 12px; }
+svg .grid { stroke: var(--grid); stroke-width: 1; }
+svg .axis, svg .refline { stroke: var(--axis); stroke-width: 1; }
+svg .refline { stroke: var(--ink-2); }
+svg .series { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round;
+  stroke-linecap: round; }
+svg .series.s2 { stroke: var(--series-2); }
+svg .area-ref { fill: var(--series-1); opacity: 0.10; }
+svg .dot { fill: var(--series-1); stroke: var(--surface); stroke-width: 2; }
+svg .hit { fill: transparent; outline: none; }
+svg .hit:hover, svg .hit:focus { fill: rgba(127,127,127,0.12); }
+.bar-row { display: grid; grid-template-columns: minmax(180px, 2fr) 3fr 70px; gap: 10px;
+  align-items: center; font-size: 13px; padding: 3px 0; }
+.bar-row code { overflow-wrap: anywhere; }
+.bar-row .track { height: 12px; }
+.bar-row .fill { height: 12px; background: var(--series-1); border-radius: 0 4px 4px 0; }
+.bar-row .n { text-align: right; font-variant-numeric: tabular-nums; }
+#tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--page);
+  padding: 6px 10px; border-radius: 6px; font-size: 12px; max-width: 320px; z-index: 10;
+  display: none; }
+details { margin-top: 8px; } summary { cursor: pointer; color: var(--ink-2); }
+ul.plain { margin: 0; padding-left: 18px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Observabilidade do modelo de Credit Scoring</h1>
+  <p class="sub">Saúde dos dados, do modelo e do pipeline em seis lotes mensais de produção,
+  comparados com a referência de treino (safra de treino 2025).</p>
+  <p class="meta">Execução <code>f1f8002e403c</code> · gerado em 2026-11-15T17:50:15+00:00
+  · referência: 52.869 linhas de treino +
+  17.623 de holdout</p>
+
+  <div class="card hero">
+    <div>
+      <div class="meta">AUC no último lote (jun/26)</div>
+      <div class="value">0,677</div>
+    </div>
+    <div>
+      <span class="badge critical">✕ Crítico</span>
+      <p class="sub" style="margin:6px 0 0">Na referência o AUC era 0,854.
+      Queda de 0,177 — diagnóstico do lote:
+      <strong>Data drift + degradação de performance</strong>.</p>
+    </div>
+  </div>
+
+  <div class="grid tiles">
+    <div class="card tile"><div class="label">Alertas gerados</div>
+      <div class="value">21</div>
+      <div class="note">15 críticos · 6 de atenção</div></div>
+    <div class="card tile"><div class="label">Entregas bloqueadas pelo contrato</div>
+      <div class="value">1</div>
+      <div class="note">nenhum dado inválido chegou ao modelo</div></div>
+    <div class="card tile"><div class="label">Taxa de aprovação</div>
+      <div class="value">68,4%</div>
+      <div class="note">era 79,7% na referência</div></div>
+    <div class="card tile"><div class="label">Inadimplência nos aprovados</div>
+      <div class="value">9,2%</div>
+      <div class="note">era 2,5% na referência</div></div>
+    <div class="card tile"><div class="label">Tarefas do pipeline</div>
+      <div class="value">49/50</div>
+      <div class="note">1 falha(s) · 22,23 s no total</div></div>
+  </div>
+
+  <h2>Saúde do modelo ao longo do tempo</h2>
+  <p class="sub">A linha "ref." é o valor medido no holdout da referência. As três primeiras
+  métricas dependem do rótulo (pagou ou não), que só chega meses depois; o PSI do score é o
+  sinal precoce, disponível no dia da decisão.</p>
+  <div class="grid cols-2">
+    <div class="card"><h3>AUC (capacidade de ordenar risco)</h3>
+      <p class="meta">Alerta crítico se cair 0,05 ou mais</p>
+      <svg viewBox="0 0 380 210" role="img" aria-label="AUC por lote mensal"><line class="grid" x1="46" x2="326" y1="180.0" y2="180.0"/><text class="tick" x="40" y="183.5" text-anchor="end">0,650</text><line class="grid" x1="46" x2="326" y1="139.0" y2="139.0"/><text class="tick" x="40" y="142.5" text-anchor="end">0,709</text><line class="grid" x1="46" x2="326" y1="98.0" y2="98.0"/><text class="tick" x="40" y="101.5" text-anchor="end">0,769</text><line class="grid" x1="46" x2="326" y1="57.0" y2="57.0"/><text class="tick" x="40" y="60.5" text-anchor="end">0,828</text><line class="grid" x1="46" x2="326" y1="16.0" y2="16.0"/><text class="tick" x="40" y="19.5" text-anchor="end">0,888</text><text class="tick" x="46.0" y="200" text-anchor="middle">jan/26</text><text class="tick" x="102.0" y="200" text-anchor="middle">fev/26</text><text class="tick" x="158.0" y="200" text-anchor="middle">mar/26</text><text class="tick" x="214.0" y="200" text-anchor="middle">abr/26</text><text class="tick" x="270.0" y="200" text-anchor="middle">mai/26</text><text class="tick" x="326.0" y="200" text-anchor="middle">jun/26</text><line class="refline" x1="46" x2="326" y1="39.5" y2="39.5"/><text class="tick" x="332" y="35.5">ref.</text><text class="tick" x="332" y="48.5">0,854</text><path class="series" d="M46.0,34.9 L102.0,37.1 L158.0,54.5 L214.0,42.2 L270.0,118.1 L326.0,161.1"/><circle class="dot" cx="46.0" cy="34.9" r="4"/><circle class="hit" cx="46.0" cy="34.9" r="16" tabindex="0" data-tip="jan/26 · AUC: 0,860"/><circle class="dot" cx="102.0" cy="37.1" r="4"/><circle class="hit" cx="102.0" cy="37.1" r="16" tabindex="0" data-tip="fev/26 · AUC: 0,857"/><circle class="dot" cx="158.0" cy="54.5" r="4"/><circle class="hit" cx="158.0" cy="54.5" r="16" tabindex="0" data-tip="mar/26 · AUC: 0,832"/><circle class="dot" cx="214.0" cy="42.2" r="4"/><circle class="hit" cx="214.0" cy="42.2" r="16" tabindex="0" data-tip="abr/26 · AUC: 0,850"/><circle class="dot" cx="270.0" cy="118.1" r="4"/><circle class="hit" cx="270.0" cy="118.1" r="16" tabindex="0" data-tip="mai/26 · AUC: 0,739"/><circle class="dot" cx="326.0" cy="161.1" r="4"/><circle class="hit" cx="326.0" cy="161.1" r="16" tabindex="0" data-tip="jun/26 · AUC: 0,677"/><text class="endlabel" x="334.0" y="165.1">0,677</text></svg></div>
+    <div class="card"><h3>Inadimplência dentro dos aprovados</h3>
+      <p class="meta">É aqui que a degradação vira prejuízo</p>
+      <svg viewBox="0 0 380 210" role="img" aria-label="Inadimplência nos aprovados por lote mensal"><line class="grid" x1="46" x2="326" y1="180.0" y2="180.0"/><text class="tick" x="40" y="183.5" text-anchor="end">1,4%</text><line class="grid" x1="46" x2="326" y1="139.0" y2="139.0"/><text class="tick" x="40" y="142.5" text-anchor="end">3,6%</text><line class="grid" x1="46" x2="326" y1="98.0" y2="98.0"/><text class="tick" x="40" y="101.5" text-anchor="end">5,8%</text><line class="grid" x1="46" x2="326" y1="57.0" y2="57.0"/><text class="tick" x="40" y="60.5" text-anchor="end">8,0%</text><line class="grid" x1="46" x2="326" y1="16.0" y2="16.0"/><text class="tick" x="40" y="19.5" text-anchor="end">10,2%</text><text class="tick" x="46.0" y="200" text-anchor="middle">jan/26</text><text class="tick" x="102.0" y="200" text-anchor="middle">fev/26</text><text class="tick" x="158.0" y="200" text-anchor="middle">mar/26</text><text class="tick" x="214.0" y="200" text-anchor="middle">abr/26</text><text class="tick" x="270.0" y="200" text-anchor="middle">mai/26</text><text class="tick" x="326.0" y="200" text-anchor="middle">jun/26</text><line class="refline" x1="46" x2="326" y1="160.7" y2="160.7"/><text class="tick" x="332" y="156.7">ref.</text><text class="tick" x="332" y="169.7">2,5%</text><path class="series" d="M46.0,160.7 L102.0,161.1 L158.0,155.9 L214.0,159.0 L270.0,102.4 L326.0,34.9"/><circle class="dot" cx="46.0" cy="160.7" r="4"/><circle class="hit" cx="46.0" cy="160.7" r="16" tabindex="0" data-tip="jan/26 · Inadimplência nos aprovados: 2,5%"/><circle class="dot" cx="102.0" cy="161.1" r="4"/><circle class="hit" cx="102.0" cy="161.1" r="16" tabindex="0" data-tip="fev/26 · Inadimplência nos aprovados: 2,5%"/><circle class="dot" cx="158.0" cy="155.9" r="4"/><circle class="hit" cx="158.0" cy="155.9" r="16" tabindex="0" data-tip="mar/26 · Inadimplência nos aprovados: 2,7%"/><circle class="dot" cx="214.0" cy="159.0" r="4"/><circle class="hit" cx="214.0" cy="159.0" r="16" tabindex="0" data-tip="abr/26 · Inadimplência nos aprovados: 2,6%"/><circle class="dot" cx="270.0" cy="102.4" r="4"/><circle class="hit" cx="270.0" cy="102.4" r="16" tabindex="0" data-tip="mai/26 · Inadimplência nos aprovados: 5,6%"/><circle class="dot" cx="326.0" cy="34.9" r="4"/><circle class="hit" cx="326.0" cy="34.9" r="16" tabindex="0" data-tip="jun/26 · Inadimplência nos aprovados: 9,2%"/><text class="endlabel" x="334.0" y="38.9">9,2%</text></svg></div>
+    <div class="card"><h3>Taxa de aprovação</h3>
+      <p class="meta">Mesmo limiar de score em todos os meses</p>
+      <svg viewBox="0 0 380 210" role="img" aria-label="Taxa de aprovação por lote mensal"><line class="grid" x1="46" x2="326" y1="180.0" y2="180.0"/><text class="tick" x="40" y="183.5" text-anchor="end">66,7%</text><line class="grid" x1="46" x2="326" y1="139.0" y2="139.0"/><text class="tick" x="40" y="142.5" text-anchor="end">70,5%</text><line class="grid" x1="46" x2="326" y1="98.0" y2="98.0"/><text class="tick" x="40" y="101.5" text-anchor="end">74,2%</text><line class="grid" x1="46" x2="326" y1="57.0" y2="57.0"/><text class="tick" x="40" y="60.5" text-anchor="end">78,0%</text><line class="grid" x1="46" x2="326" y1="16.0" y2="16.0"/><text class="tick" x="40" y="19.5" text-anchor="end">81,8%</text><text class="tick" x="46.0" y="200" text-anchor="middle">jan/26</text><text class="tick" x="102.0" y="200" text-anchor="middle">fev/26</text><text class="tick" x="158.0" y="200" text-anchor="middle">mar/26</text><text class="tick" x="214.0" y="200" text-anchor="middle">abr/26</text><text class="tick" x="270.0" y="200" text-anchor="middle">mai/26</text><text class="tick" x="326.0" y="200" text-anchor="middle">jun/26</text><line class="refline" x1="46" x2="326" y1="38.3" y2="38.3"/><text class="tick" x="332" y="34.3">ref.</text><text class="tick" x="332" y="47.3">79,7%</text><path class="series" d="M46.0,34.9 L102.0,36.8 L158.0,71.6 L214.0,115.0 L270.0,139.4 L326.0,161.1"/><circle class="dot" cx="46.0" cy="34.9" r="4"/><circle class="hit" cx="46.0" cy="34.9" r="16" tabindex="0" data-tip="jan/26 · Taxa de aprovação: 80,0%"/><circle class="dot" cx="102.0" cy="36.8" r="4"/><circle class="hit" cx="102.0" cy="36.8" r="16" tabindex="0" data-tip="fev/26 · Taxa de aprovação: 79,9%"/><circle class="dot" cx="158.0" cy="71.6" r="4"/><circle class="hit" cx="158.0" cy="71.6" r="16" tabindex="0" data-tip="mar/26 · Taxa de aprovação: 76,7%"/><circle class="dot" cx="214.0" cy="115.0" r="4"/><circle class="hit" cx="214.0" cy="115.0" r="16" tabindex="0" data-tip="abr/26 · Taxa de aprovação: 72,7%"/><circle class="dot" cx="270.0" cy="139.4" r="4"/><circle class="hit" cx="270.0" cy="139.4" r="16" tabindex="0" data-tip="mai/26 · Taxa de aprovação: 70,4%"/><circle class="dot" cx="326.0" cy="161.1" r="4"/><circle class="hit" cx="326.0" cy="161.1" r="16" tabindex="0" data-tip="jun/26 · Taxa de aprovação: 68,4%"/><text class="endlabel" x="334.0" y="165.1">68,4%</text></svg></div>
+    <div class="card"><h3>PSI do score do modelo (drift de predição)</h3>
+      <p class="meta">Linha "ref." = limiar crítico de PSI (0,20)</p>
+      <svg viewBox="0 0 380 210" role="img" aria-label="PSI do score por lote mensal"><line class="grid" x1="46" x2="326" y1="180.0" y2="180.0"/><text class="tick" x="40" y="183.5" text-anchor="end">0,000</text><line class="grid" x1="46" x2="326" y1="139.0" y2="139.0"/><text class="tick" x="40" y="142.5" text-anchor="end">0,119</text><line class="grid" x1="46" x2="326" y1="98.0" y2="98.0"/><text class="tick" x="40" y="101.5" text-anchor="end">0,238</text><line class="grid" x1="46" x2="326" y1="57.0" y2="57.0"/><text class="tick" x="40" y="60.5" text-anchor="end">0,358</text><line class="grid" x1="46" x2="326" y1="16.0" y2="16.0"/><text class="tick" x="40" y="19.5" text-anchor="end">0,477</text><text class="tick" x="46.0" y="200" text-anchor="middle">jan/26</text><text class="tick" x="102.0" y="200" text-anchor="middle">fev/26</text><text class="tick" x="158.0" y="200" text-anchor="middle">mar/26</text><text class="tick" x="214.0" y="200" text-anchor="middle">abr/26</text><text class="tick" x="270.0" y="200" text-anchor="middle">mai/26</text><text class="tick" x="326.0" y="200" text-anchor="middle">jun/26</text><line class="refline" x1="46" x2="326" y1="111.2" y2="111.2"/><text class="tick" x="332" y="107.2">ref.</text><text class="tick" x="332" y="120.2">0,200</text><path class="series" d="M46.0,179.7 L102.0,179.5 L158.0,163.6 L214.0,120.3 L270.0,80.0 L326.0,37.4"/><circle class="dot" cx="46.0" cy="179.7" r="4"/><circle class="hit" cx="46.0" cy="179.7" r="16" tabindex="0" data-tip="jan/26 · PSI do score: 0,001"/><circle class="dot" cx="102.0" cy="179.5" r="4"/><circle class="hit" cx="102.0" cy="179.5" r="16" tabindex="0" data-tip="fev/26 · PSI do score: 0,002"/><circle class="dot" cx="158.0" cy="163.6" r="4"/><circle class="hit" cx="158.0" cy="163.6" r="16" tabindex="0" data-tip="mar/26 · PSI do score: 0,048"/><circle class="dot" cx="214.0" cy="120.3" r="4"/><circle class="hit" cx="214.0" cy="120.3" r="16" tabindex="0" data-tip="abr/26 · PSI do score: 0,174"/><circle class="dot" cx="270.0" cy="80.0" r="4"/><circle class="hit" cx="270.0" cy="80.0" r="16" tabindex="0" data-tip="mai/26 · PSI do score: 0,291"/><circle class="dot" cx="326.0" cy="37.4" r="4"/><circle class="hit" cx="326.0" cy="37.4" r="16" tabindex="0" data-tip="jun/26 · PSI do score: 0,415"/><text class="endlabel" x="334.0" y="41.4">0,415</text></svg></div>
+  </div>
+
+  <h2>Drift por variável (PSI contra a referência)</h2>
+  <p class="sub">Cada célula é o PSI da variável naquele mês.
+  <span class="badge ok">✓ Estável &lt; 0,10</span>
+  <span class="badge warning">▲ Atenção</span>
+  <span class="badge critical">✕ Crítico ≥ 0,20</span>
+  Passe o mouse para ver o KS e o deslocamento da média.</p>
+  <div class="card table-wrap">
+    <table class="heat">
+      <thead><tr><th>Variável</th><th class="num" style="text-align:center">jan/26</th><th class="num" style="text-align:center">fev/26</th><th class="num" style="text-align:center">mar/26</th><th class="num" style="text-align:center">abr/26</th><th class="num" style="text-align:center">mai/26</th><th class="num" style="text-align:center">jun/26</th></tr></thead>
+      <tbody>
+        <tr class=""><td>Idade <span class="meta"><code>age</code></span></td>
+<td class="cell ok"><span tabindex="0" data-tip="Idade em jan/26: PSI 0,001 (Estável) · KS D 0,008 · média +0,1%">✓ 0,001</span></td><td class="cell ok"><span tabindex="0" data-tip="Idade em fev/26: PSI 0,002 (Estável) · KS D 0,015 · média +0,5%">✓ 0,002</span></td><td class="cell warning"><span tabindex="0" data-tip="Idade em mar/26: PSI 0,107 (Atenção) · KS D 0,147 · média -7,0%">▲ 0,107</span></td><td class="cell critical"><span tabindex="0" data-tip="Idade em abr/26: PSI 0,279 (Crítico) · KS D 0,250 · média -12,4%">✕ 0,279</span></td><td class="cell critical"><span tabindex="0" data-tip="Idade em mai/26: PSI 0,394 (Crítico) · KS D 0,300 · média -14,8%">✕ 0,394</span></td><td class="cell critical"><span tabindex="0" data-tip="Idade em jun/26: PSI 0,464 (Crítico) · KS D 0,329 · média -15,9%">✕ 0,464</span></td>        </tr>
+        <tr class=""><td>Utilização do rotativo <span class="meta"><code>revolving_utilization</code></span></td>
+<td class="cell ok"><span tabindex="0" data-tip="Utilização do rotativo em jan/26: PSI 0,002 (Estável) · KS D 0,007 · média +0,6%">✓ 0,002</span></td><td class="cell ok"><span tabindex="0" data-tip="Utilização do rotativo em fev/26: PSI 0,003 (Estável) · KS D 0,021 · média -2,3%">✓ 0,003</span></td><td class="cell ok"><span tabindex="0" data-tip="Utilização do rotativo em mar/26: PSI 0,046 (Estável) · KS D 0,096 · média +18,0%">✓ 0,046</span></td><td class="cell warning"><span tabindex="0" data-tip="Utilização do rotativo em abr/26: PSI 0,179 (Atenção) · KS D 0,200 · média +38,7%">▲ 0,179</span></td><td class="cell critical"><span tabindex="0" data-tip="Utilização do rotativo em mai/26: PSI 0,308 (Crítico) · KS D 0,251 · média +48,5%">✕ 0,308</span></td><td class="cell critical"><span tabindex="0" data-tip="Utilização do rotativo em jun/26: PSI 0,436 (Crítico) · KS D 0,303 · média +59,8%">✕ 0,436</span></td>        </tr>
+        <tr class="score"><td>Score do modelo <span class="meta"><code>score</code></span></td>
+<td class="cell ok"><span tabindex="0" data-tip="Score do modelo em jan/26: PSI 0,001 (Estável) · KS D 0,012 · média -0,3%">✓ 0,001</span></td><td class="cell ok"><span tabindex="0" data-tip="Score do modelo em fev/26: PSI 0,002 (Estável) · KS D 0,011 · média -2,4%">✓ 0,002</span></td><td class="cell ok"><span tabindex="0" data-tip="Score do modelo em mar/26: PSI 0,048 (Estável) · KS D 0,100 · média +12,3%">✓ 0,048</span></td><td class="cell warning"><span tabindex="0" data-tip="Score do modelo em abr/26: PSI 0,174 (Atenção) · KS D 0,189 · média +26,9%">▲ 0,174</span></td><td class="cell critical"><span tabindex="0" data-tip="Score do modelo em mai/26: PSI 0,291 (Crítico) · KS D 0,232 · média +32,2%">✕ 0,291</span></td><td class="cell critical"><span tabindex="0" data-tip="Score do modelo em jun/26: PSI 0,415 (Crítico) · KS D 0,275 · média +41,9%">✕ 0,415</span></td>        </tr>
+        <tr class=""><td>Renda mensal <span class="meta"><code>monthly_income</code></span></td>
+<td class="cell ok"><span tabindex="0" data-tip="Renda mensal em jan/26: PSI 0,002 (Estável) · KS D 0,008 · média -1,5%">✓ 0,002</span></td><td class="cell ok"><span tabindex="0" data-tip="Renda mensal em fev/26: PSI 0,002 (Estável) · KS D 0,011 · média -1,9%">✓ 0,002</span></td><td class="cell ok"><span tabindex="0" data-tip="Renda mensal em mar/26: PSI 0,062 (Estável) · KS D 0,103 · média +15,9%">✓ 0,062</span></td><td class="cell warning"><span tabindex="0" data-tip="Renda mensal em abr/26: PSI 0,160 (Atenção) · KS D 0,166 · média +31,1%">▲ 0,160</span></td><td class="cell critical"><span tabindex="0" data-tip="Renda mensal em mai/26: PSI 0,225 (Crítico) · KS D 0,195 · média +38,2%">✕ 0,225</span></td><td class="cell critical"><span tabindex="0" data-tip="Renda mensal em jun/26: PSI 0,276 (Crítico) · KS D 0,217 · média +43,0%">✕ 0,276</span></td>        </tr>
+        <tr class=""><td>Comprometimento de renda <span class="meta"><code>debt_ratio</code></span></td>
+<td class="cell ok"><span tabindex="0" data-tip="Comprometimento de renda em jan/26: PSI 0,002 (Estável) · KS D 0,008 · média +3,4%">✓ 0,002</span></td><td class="cell ok"><span tabindex="0" data-tip="Comprometimento de renda em fev/26: PSI 0,001 (Estável) · KS D 0,012 · média -0,5%">✓ 0,001</span></td><td class="cell ok"><span tabindex="0" data-tip="Comprometimento de renda em mar/26: PSI 0,038 (Estável) · KS D 0,081 · média +14,2%">✓ 0,038</span></td><td class="cell ok"><span tabindex="0" data-tip="Comprometimento de renda em abr/26: PSI 0,099 (Estável) · KS D 0,132 · média +28,9%">✓ 0,099</span></td><td class="cell warning"><span tabindex="0" data-tip="Comprometimento de renda em mai/26: PSI 0,154 (Atenção) · KS D 0,164 · média +35,6%">▲ 0,154</span></td><td class="cell critical"><span tabindex="0" data-tip="Comprometimento de renda em jun/26: PSI 0,223 (Crítico) · KS D 0,193 · média +48,1%">✕ 0,223</span></td>        </tr>
+        <tr class=""><td>Financiamentos imobiliários <span class="meta"><code>real_estate_loans</code></span></td>
+<td class="cell ok"><span tabindex="0" data-tip="Financiamentos imobiliários em jan/26: PSI 0,004 (Estável) · KS D 0,007 · média +1,1%">✓ 0,004</span></td><td class="cell ok"><span tabindex="0" data-tip="Financiamentos imobiliários em fev/26: PSI 0,002 (Estável) · KS D 0,004 · média -1,2%">✓ 0,002</span></td><td class="cell ok"><span tabindex="0" data-tip="Financiamentos imobiliários em mar/26: PSI 0,018 (Estável) · KS D 0,059 · média -9,8%">✓ 0,018</span></td><td class="cell ok"><span tabindex="0" data-tip="Financiamentos imobiliários em abr/26: PSI 0,038 (Estável) · KS D 0,094 · média -15,9%">✓ 0,038</span></td><td class="cell ok"><span tabindex="0" data-tip="Financiamentos imobiliários em mai/26: PSI 0,060 (Estável) · KS D 0,119 · média -19,7%">✓ 0,060</span></td><td class="cell ok"><span tabindex="0" data-tip="Financiamentos imobiliários em jun/26: PSI 0,079 (Estável) · KS D 0,137 · média -22,5%">✓ 0,079</span></td>        </tr>
+        <tr class=""><td>Linhas de crédito abertas <span class="meta"><code>open_credit_lines</code></span></td>
+<td class="cell ok"><span tabindex="0" data-tip="Linhas de crédito abertas em jan/26: PSI 0,002 (Estável) · KS D 0,010 · média +0,5%">✓ 0,002</span></td><td class="cell ok"><span tabindex="0" data-tip="Linhas de crédito abertas em fev/26: PSI 0,002 (Estável) · KS D 0,008 · média -0,5%">✓ 0,002</span></td><td class="cell ok"><span tabindex="0" data-tip="Linhas de crédito abertas em mar/26: PSI 0,011 (Estável) · KS D 0,043 · média -4,5%">✓ 0,011</span></td><td class="cell ok"><span tabindex="0" data-tip="Linhas de crédito abertas em abr/26: PSI 0,034 (Estável) · KS D 0,079 · média -9,5%">✓ 0,034</span></td><td class="cell ok"><span tabindex="0" data-tip="Linhas de crédito abertas em mai/26: PSI 0,053 (Estável) · KS D 0,091 · média -11,4%">✓ 0,053</span></td><td class="cell ok"><span tabindex="0" data-tip="Linhas de crédito abertas em jun/26: PSI 0,058 (Estável) · KS D 0,099 · média -12,7%">✓ 0,058</span></td>        </tr>
+        <tr class=""><td>Dependentes <span class="meta"><code>dependents</code></span></td>
+<td class="cell ok"><span tabindex="0" data-tip="Dependentes em jan/26: PSI 0,001 (Estável) · KS D 0,009 · média +1,8%">✓ 0,001</span></td><td class="cell ok"><span tabindex="0" data-tip="Dependentes em fev/26: PSI 0,001 (Estável) · KS D 0,004 · média +1,3%">✓ 0,001</span></td><td class="cell ok"><span tabindex="0" data-tip="Dependentes em mar/26: PSI 0,004 (Estável) · KS D 0,021 · média -5,6%">✓ 0,004</span></td><td class="cell ok"><span tabindex="0" data-tip="Dependentes em abr/26: PSI 0,008 (Estável) · KS D 0,042 · média -10,1%">✓ 0,008</span></td><td class="cell ok"><span tabindex="0" data-tip="Dependentes em mai/26: PSI 0,009 (Estável) · KS D 0,043 · média -12,2%">✓ 0,009</span></td><td class="cell ok"><span tabindex="0" data-tip="Dependentes em jun/26: PSI 0,015 (Estável) · KS D 0,057 · média -14,6%">✓ 0,015</span></td>        </tr>
+        <tr class=""><td>Atrasos 60-89 dias <span class="meta"><code>late_60_89_days</code></span></td>
+<td class="cell ok"><span tabindex="0" data-tip="Atrasos 60-89 dias em jan/26: PSI 0,001 (Estável) · KS D 0,002 · média +5,1%">✓ 0,001</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 60-89 dias em fev/26: PSI 0,001 (Estável) · KS D 0,002 · média +5,3%">✓ 0,001</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 60-89 dias em mar/26: PSI 0,001 (Estável) · KS D 0,002 · média +5,3%">✓ 0,001</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 60-89 dias em abr/26: PSI 0,004 (Estável) · KS D 0,011 · média +32,8%">✓ 0,004</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 60-89 dias em mai/26: PSI 0,003 (Estável) · KS D 0,009 · média +19,4%">✓ 0,003</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 60-89 dias em jun/26: PSI 0,004 (Estável) · KS D 0,011 · média +30,2%">✓ 0,004</span></td>        </tr>
+        <tr class=""><td>Atrasos 90+ dias <span class="meta"><code>late_90_days</code></span></td>
+<td class="cell ok"><span tabindex="0" data-tip="Atrasos 90+ dias em jan/26: PSI 0,003 (Estável) · KS D 0,003 · média -5,3%">✓ 0,003</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 90+ dias em fev/26: PSI 0,004 (Estável) · KS D 0,004 · média +1,1%">✓ 0,004</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 90+ dias em mar/26: PSI 0,002 (Estável) · KS D 0,006 · média +3,7%">✓ 0,002</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 90+ dias em abr/26: PSI 0,002 (Estável) · KS D 0,004 · média +6,3%">✓ 0,002</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 90+ dias em mai/26: PSI 0,001 (Estável) · KS D 0,008 · média +14,6%">✓ 0,001</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 90+ dias em jun/26: PSI 0,004 (Estável) · KS D 0,013 · média +27,5%">✓ 0,004</span></td>        </tr>
+        <tr class=""><td>Atrasos 30-59 dias <span class="meta"><code>late_30_59_days</code></span></td>
+<td class="cell ok"><span tabindex="0" data-tip="Atrasos 30-59 dias em jan/26: PSI 0,001 (Estável) · KS D 0,008 · média -5,6%">✓ 0,001</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 30-59 dias em fev/26: PSI 0,003 (Estável) · KS D 0,007 · média +3,3%">✓ 0,003</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 30-59 dias em mar/26: PSI 0,001 (Estável) · KS D 0,002 · média -0,7%">✓ 0,001</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 30-59 dias em abr/26: PSI 0,002 (Estável) · KS D 0,005 · média -1,1%">✓ 0,002</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 30-59 dias em mai/26: PSI 0,002 (Estável) · KS D 0,004 · média -3,4%">✓ 0,002</span></td><td class="cell ok"><span tabindex="0" data-tip="Atrasos 30-59 dias em jun/26: PSI 0,001 (Estável) · KS D 0,003 · média -0,7%">✓ 0,001</span></td>        </tr>
+      </tbody>
+    </table>
+  </div>
+  <table style="margin-top:12px" class="card">
+    <thead><tr><th>Lote</th><th>Diagnóstico</th><th class="num">Features críticas</th><th class="num">Features em atenção</th><th class="num">AUC</th><th>Relatório Evidently</th></tr></thead>
+    <tbody>
+      <tr><td>jan/26</td>
+      <td><span class="badge ok">✓ Estável</span></td>
+      <td class="num">0</td><td class="num">0</td>
+      <td class="num">0,860</td>
+      <td><a href="evidently/drift_2026-01.html">drift_2026-01.html</a></td></tr>
+      <tr><td>fev/26</td>
+      <td><span class="badge ok">✓ Estável</span></td>
+      <td class="num">0</td><td class="num">0</td>
+      <td class="num">0,857</td>
+      <td><a href="evidently/drift_2026-02.html">drift_2026-02.html</a></td></tr>
+      <tr><td>mar/26</td>
+      <td><span class="badge ok">✓ Estável</span></td>
+      <td class="num">0</td><td class="num">1</td>
+      <td class="num">0,832</td>
+      <td><a href="evidently/drift_2026-03.html">drift_2026-03.html</a></td></tr>
+      <tr><td>abr/26</td>
+      <td><span class="badge warning">▲ Data drift (população mudou, modelo ainda ordena bem)</span></td>
+      <td class="num">1</td><td class="num">2</td>
+      <td class="num">0,850</td>
+      <td><a href="evidently/drift_2026-04.html">drift_2026-04.html</a></td></tr>
+      <tr><td>mai/26</td>
+      <td><span class="badge critical">✕ Data drift + degradação de performance</span></td>
+      <td class="num">3</td><td class="num">1</td>
+      <td class="num">0,739</td>
+      <td><a href="evidently/drift_2026-05.html">drift_2026-05.html</a></td></tr>
+      <tr><td>jun/26</td>
+      <td><span class="badge critical">✕ Data drift + degradação de performance</span></td>
+      <td class="num">4</td><td class="num">0</td>
+      <td class="num">0,677</td>
+      <td><a href="evidently/drift_2026-06.html">drift_2026-06.html</a></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Como as distribuições mudaram em jun/26</h2>
+  <div class="legend"><span><i></i>Referência (safra de treino 2025)</span>
+    <span><i class="s2"></i>Produção (jun/26)</span></div>
+  <div class="grid cols-3">
+    <div class="card"><h3>Utilização do rotativo</h3><svg viewBox="0 0 380 190" role="img" aria-label="Distribuição de Utilização do rotativo: referência e produção"><path class="area-ref" d="M10.0,21.4 L10.0,21.4 L28.0,21.4 L28.0,115.7 L46.0,115.7 L46.0,133.0 L64.0,133.0 L64.0,140.1 L82.0,140.1 L82.0,143.6 L100.0,143.6 L100.0,147.1 L118.0,147.1 L118.0,149.0 L136.0,149.0 L136.0,149.9 L154.0,149.9 L154.0,152.1 L172.0,152.1 L172.0,152.8 L190.0,152.8 L190.0,153.8 L208.0,153.8 L208.0,154.0 L226.0,154.0 L226.0,153.7 L244.0,153.7 L244.0,153.3 L262.0,153.3 L262.0,152.4 L280.0,152.4 L280.0,126.3 L298.0,126.3 L298.0,161.5 L316.0,161.5 L316.0,162.8 L334.0,162.8 L334.0,163.3 L352.0,163.3 L352.0,162.4 L370.0,162.4 L370.0,164.0 L10.0,164.0 Z"/><path class="series" d="M10.0,21.4 L10.0,21.4 L28.0,21.4 L28.0,115.7 L46.0,115.7 L46.0,133.0 L64.0,133.0 L64.0,140.1 L82.0,140.1 L82.0,143.6 L100.0,143.6 L100.0,147.1 L118.0,147.1 L118.0,149.0 L136.0,149.0 L136.0,149.9 L154.0,149.9 L154.0,152.1 L172.0,152.1 L172.0,152.8 L190.0,152.8 L190.0,153.8 L208.0,153.8 L208.0,154.0 L226.0,154.0 L226.0,153.7 L244.0,153.7 L244.0,153.3 L262.0,153.3 L262.0,152.4 L280.0,152.4 L280.0,126.3 L298.0,126.3 L298.0,161.5 L316.0,161.5 L316.0,162.8 L334.0,162.8 L334.0,163.3 L352.0,163.3 L352.0,162.4 L370.0,162.4"/><path class="series s2" d="M10.0,107.7 L10.0,107.7 L28.0,107.7 L28.0,143.5 L46.0,143.5 L46.0,144.1 L64.0,144.1 L64.0,145.2 L82.0,145.2 L82.0,140.6 L100.0,140.6 L100.0,140.8 L118.0,140.8 L118.0,141.6 L136.0,141.6 L136.0,139.7 L154.0,139.7 L154.0,138.7 L172.0,138.7 L172.0,138.2 L190.0,138.2 L190.0,139.6 L208.0,139.6 L208.0,141.0 L226.0,141.0 L226.0,145.9 L244.0,145.9 L244.0,147.1 L262.0,147.1 L262.0,144.5 L280.0,144.5 L280.0,103.2 L298.0,103.2 L298.0,160.1 L316.0,160.1 L316.0,162.6 L334.0,162.6 L334.0,163.1 L352.0,163.1 L352.0,161.0 L370.0,161.0"/><line class="axis" x1="10" x2="370" y1="164.0" y2="164.0"/><text class="tick" x="10.0" y="182" text-anchor="start">0,00</text><text class="tick" x="190.0" y="182" text-anchor="middle">0,64</text><text class="tick" x="370.0" y="182" text-anchor="end">1,28</text><rect class="hit" x="10.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,00 a 0,06 · referência 33,0% · produção 13,0%"/><rect class="hit" x="28.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,06 a 0,13 · referência 11,2% · produção 4,8%"/><rect class="hit" x="46.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,13 a 0,19 · referência 7,2% · produção 4,6%"/><rect class="hit" x="64.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,19 a 0,26 · referência 5,5% · produção 4,3%"/><rect class="hit" x="82.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,26 a 0,32 · referência 4,7% · produção 5,4%"/><rect class="hit" x="100.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,32 a 0,38 · referência 3,9% · produção 5,4%"/><rect class="hit" x="118.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,38 a 0,45 · referência 3,5% · produção 5,2%"/><rect class="hit" x="136.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,45 a 0,51 · referência 3,3% · produção 5,6%"/><rect class="hit" x="154.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,51 a 0,58 · referência 2,8% · produção 5,9%"/><rect class="hit" x="172.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,58 a 0,64 · referência 2,6% · produção 6,0%"/><rect class="hit" x="190.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,64 a 0,71 · referência 2,4% · produção 5,7%"/><rect class="hit" x="208.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,71 a 0,77 · referência 2,3% · produção 5,3%"/><rect class="hit" x="226.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,77 a 0,83 · referência 2,4% · produção 4,2%"/><rect class="hit" x="244.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,83 a 0,90 · referência 2,5% · produção 3,9%"/><rect class="hit" x="262.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,90 a 0,96 · referência 2,7% · produção 4,5%"/><rect class="hit" x="280.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 0,96 a 1,03 · referência 8,7% · produção 14,1%"/><rect class="hit" x="298.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 1,03 a 1,09 · referência 0,6% · produção 0,9%"/><rect class="hit" x="316.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 1,09 a 1,15 · referência 0,3% · produção 0,3%"/><rect class="hit" x="334.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 1,15 a 1,22 · referência 0,2% · produção 0,2%"/><rect class="hit" x="352.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Utilização do rotativo de 1,22 a 1,28 · referência 0,4% · produção 0,7%"/></svg></div>
+    <div class="card"><h3>Renda mensal</h3><svg viewBox="0 0 380 190" role="img" aria-label="Distribuição de Renda mensal: referência e produção"><path class="area-ref" d="M10.0,84.5 L10.0,84.5 L28.0,84.5 L28.0,21.4 L46.0,21.4 L46.0,64.6 L64.0,64.6 L64.0,102.2 L82.0,102.2 L82.0,133.4 L100.0,133.4 L100.0,149.3 L118.0,149.3 L118.0,157.4 L136.0,157.4 L136.0,159.6 L154.0,159.6 L154.0,161.9 L172.0,161.9 L172.0,163.0 L190.0,163.0 L190.0,162.6 L208.0,162.6 L208.0,163.5 L226.0,163.5 L226.0,163.3 L244.0,163.3 L244.0,163.5 L262.0,163.5 L262.0,163.7 L280.0,163.7 L280.0,163.9 L298.0,163.9 L298.0,163.7 L316.0,163.7 L316.0,163.9 L334.0,163.9 L334.0,163.8 L352.0,163.8 L352.0,162.8 L370.0,162.8 L370.0,164.0 L10.0,164.0 Z"/><path class="series" d="M10.0,84.5 L10.0,84.5 L28.0,84.5 L28.0,21.4 L46.0,21.4 L46.0,64.6 L64.0,64.6 L64.0,102.2 L82.0,102.2 L82.0,133.4 L100.0,133.4 L100.0,149.3 L118.0,149.3 L118.0,157.4 L136.0,157.4 L136.0,159.6 L154.0,159.6 L154.0,161.9 L172.0,161.9 L172.0,163.0 L190.0,163.0 L190.0,162.6 L208.0,162.6 L208.0,163.5 L226.0,163.5 L226.0,163.3 L244.0,163.3 L244.0,163.5 L262.0,163.5 L262.0,163.7 L280.0,163.7 L280.0,163.9 L298.0,163.9 L298.0,163.7 L316.0,163.7 L316.0,163.9 L334.0,163.9 L334.0,163.8 L352.0,163.8 L352.0,162.8 L370.0,162.8"/><path class="series s2" d="M10.0,119.6 L10.0,119.6 L28.0,119.6 L28.0,72.4 L46.0,72.4 L46.0,69.9 L64.0,69.9 L64.0,92.4 L82.0,92.4 L82.0,115.9 L100.0,115.9 L100.0,131.1 L118.0,131.1 L118.0,143.2 L136.0,143.2 L136.0,149.1 L154.0,149.1 L154.0,155.1 L172.0,155.1 L172.0,158.0 L190.0,158.0 L190.0,159.5 L208.0,159.5 L208.0,161.4 L226.0,161.4 L226.0,162.4 L244.0,162.4 L244.0,162.6 L262.0,162.6 L262.0,163.4 L280.0,163.4 L280.0,163.6 L298.0,163.6 L298.0,163.4 L316.0,163.4 L316.0,163.6 L334.0,163.6 L334.0,163.9 L352.0,163.9 L352.0,161.4 L370.0,161.4"/><line class="axis" x1="10" x2="370" y1="164.0" y2="164.0"/><text class="tick" x="10.0" y="182" text-anchor="start">517</text><text class="tick" x="190.0" y="182" text-anchor="middle">24.985</text><text class="tick" x="370.0" y="182" text-anchor="end">49.452</text><rect class="hit" x="10.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 517 a 2.964 · referência 17,7% · produção 9,9%"/><rect class="hit" x="28.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 2.964 a 5.411 · referência 31,8% · produção 20,4%"/><rect class="hit" x="46.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 5.411 a 7.858 · referência 22,2% · produção 21,0%"/><rect class="hit" x="64.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 7.858 a 10.304 · referência 13,8% · produção 16,0%"/><rect class="hit" x="82.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 10.304 a 12.751 · referência 6,8% · produção 10,7%"/><rect class="hit" x="100.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 12.751 a 15.198 · referência 3,3% · produção 7,3%"/><rect class="hit" x="118.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 15.198 a 17.645 · referência 1,5% · produção 4,6%"/><rect class="hit" x="136.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 17.645 a 20.091 · referência 1,0% · produção 3,3%"/><rect class="hit" x="154.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 20.091 a 22.538 · referência 0,5% · produção 2,0%"/><rect class="hit" x="172.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 22.538 a 24.985 · referência 0,2% · produção 1,3%"/><rect class="hit" x="190.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 24.985 a 27.432 · referência 0,3% · produção 1,0%"/><rect class="hit" x="208.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 27.432 a 29.878 · referência 0,1% · produção 0,6%"/><rect class="hit" x="226.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 29.878 a 32.325 · referência 0,2% · produção 0,4%"/><rect class="hit" x="244.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 32.325 a 34.772 · referência 0,1% · produção 0,3%"/><rect class="hit" x="262.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 34.772 a 37.218 · referência 0,1% · produção 0,1%"/><rect class="hit" x="280.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 37.218 a 39.665 · referência 0,0% · produção 0,1%"/><rect class="hit" x="298.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 39.665 a 42.112 · referência 0,1% · produção 0,1%"/><rect class="hit" x="316.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 42.112 a 44.559 · referência 0,0% · produção 0,1%"/><rect class="hit" x="334.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 44.559 a 47.005 · referência 0,0% · produção 0,0%"/><rect class="hit" x="352.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Renda mensal de 47.005 a 49.452 · referência 0,3% · produção 0,6%"/></svg></div>
+    <div class="card"><h3>Idade</h3><svg viewBox="0 0 380 190" role="img" aria-label="Distribuição de Idade: referência e produção"><path class="area-ref" d="M10.0,148.1 L10.0,148.1 L28.0,148.1 L28.0,140.8 L46.0,140.8 L46.0,128.4 L64.0,128.4 L64.0,112.5 L82.0,112.5 L82.0,118.6 L100.0,118.6 L100.0,111.7 L118.0,111.7 L118.0,88.9 L136.0,88.9 L136.0,97.0 L154.0,97.0 L154.0,99.5 L172.0,99.5 L172.0,83.8 L190.0,83.8 L190.0,105.9 L208.0,105.9 L208.0,107.6 L226.0,107.6 L226.0,113.3 L244.0,113.3 L244.0,114.6 L262.0,114.6 L262.0,135.1 L280.0,135.1 L280.0,139.6 L298.0,139.6 L298.0,141.6 L316.0,141.6 L316.0,151.5 L334.0,151.5 L334.0,156.6 L352.0,156.6 L352.0,154.8 L370.0,154.8 L370.0,164.0 L10.0,164.0 Z"/><path class="series" d="M10.0,148.1 L10.0,148.1 L28.0,148.1 L28.0,140.8 L46.0,140.8 L46.0,128.4 L64.0,128.4 L64.0,112.5 L82.0,112.5 L82.0,118.6 L100.0,118.6 L100.0,111.7 L118.0,111.7 L118.0,88.9 L136.0,88.9 L136.0,97.0 L154.0,97.0 L154.0,99.5 L172.0,99.5 L172.0,83.8 L190.0,83.8 L190.0,105.9 L208.0,105.9 L208.0,107.6 L226.0,107.6 L226.0,113.3 L244.0,113.3 L244.0,114.6 L262.0,114.6 L262.0,135.1 L280.0,135.1 L280.0,139.6 L298.0,139.6 L298.0,141.6 L316.0,141.6 L316.0,151.5 L334.0,151.5 L334.0,156.6 L352.0,156.6 L352.0,154.8 L370.0,154.8"/><path class="series s2" d="M10.0,107.7 L10.0,107.7 L28.0,107.7 L28.0,82.8 L46.0,82.8 L46.0,51.6 L64.0,51.6 L64.0,21.4 L82.0,21.4 L82.0,136.8 L100.0,136.8 L100.0,132.7 L118.0,132.7 L118.0,117.9 L136.0,117.9 L136.0,125.3 L154.0,125.3 L154.0,122.4 L172.0,122.4 L172.0,110.6 L190.0,110.6 L190.0,127.9 L208.0,127.9 L208.0,130.9 L226.0,130.9 L226.0,131.4 L244.0,131.4 L244.0,131.9 L262.0,131.9 L262.0,146.6 L280.0,146.6 L280.0,150.2 L298.0,150.2 L298.0,150.9 L316.0,150.9 L316.0,153.8 L334.0,153.8 L334.0,159.4 L352.0,159.4 L352.0,158.0 L370.0,158.0"/><line class="axis" x1="10" x2="370" y1="164.0" y2="164.0"/><text class="tick" x="10.0" y="182" text-anchor="start">22,00</text><text class="tick" x="190.0" y="182" text-anchor="middle">55,00</text><text class="tick" x="370.0" y="182" text-anchor="end">88,00</text><rect class="hit" x="10.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 22,00 a 25,30 · referência 1,9% · produção 6,8%"/><rect class="hit" x="28.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 25,30 a 28,60 · referência 2,8% · produção 9,8%"/><rect class="hit" x="46.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 28,60 a 31,90 · referência 4,3% · produção 13,6%"/><rect class="hit" x="64.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 31,90 a 35,20 · referência 6,2% · produção 17,2%"/><rect class="hit" x="82.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 35,20 a 38,50 · referência 5,5% · produção 3,3%"/><rect class="hit" x="100.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 38,50 a 41,80 · referência 6,3% · produção 3,8%"/><rect class="hit" x="118.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 41,80 a 45,10 · referência 9,1% · produção 5,5%"/><rect class="hit" x="136.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 45,10 a 48,40 · referência 8,1% · produção 4,7%"/><rect class="hit" x="154.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 48,40 a 51,70 · referência 7,8% · produção 5,0%"/><rect class="hit" x="172.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 51,70 a 55,00 · referência 9,7% · produção 6,4%"/><rect class="hit" x="190.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 55,00 a 58,30 · referência 7,0% · produção 4,3%"/><rect class="hit" x="208.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 58,30 a 61,60 · referência 6,8% · produção 4,0%"/><rect class="hit" x="226.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 61,60 a 64,90 · referência 6,1% · produção 3,9%"/><rect class="hit" x="244.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 64,90 a 68,20 · referência 5,9% · produção 3,9%"/><rect class="hit" x="262.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 68,20 a 71,50 · referência 3,5% · produção 2,1%"/><rect class="hit" x="280.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 71,50 a 74,80 · referência 2,9% · produção 1,7%"/><rect class="hit" x="298.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 74,80 a 78,10 · referência 2,7% · produção 1,6%"/><rect class="hit" x="316.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 78,10 a 81,40 · referência 1,5% · produção 1,2%"/><rect class="hit" x="334.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 81,40 a 84,70 · referência 0,9% · produção 0,5%"/><rect class="hit" x="352.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Idade de 84,70 a 88,00 · referência 1,1% · produção 0,7%"/></svg></div>
+    <div class="card"><h3>Comprometimento de renda</h3><svg viewBox="0 0 380 190" role="img" aria-label="Distribuição de Comprometimento de renda: referência e produção"><path class="area-ref" d="M10.0,21.4 L10.0,21.4 L28.0,21.4 L28.0,28.7 L46.0,28.7 L46.0,91.6 L64.0,91.6 L64.0,134.7 L82.0,134.7 L82.0,152.0 L100.0,152.0 L100.0,158.7 L118.0,158.7 L118.0,160.6 L136.0,160.6 L136.0,162.3 L154.0,162.3 L154.0,163.0 L172.0,163.0 L172.0,163.4 L190.0,163.4 L190.0,163.4 L208.0,163.4 L208.0,163.6 L226.0,163.6 L226.0,163.5 L244.0,163.5 L244.0,163.8 L262.0,163.8 L262.0,163.8 L280.0,163.8 L280.0,163.8 L298.0,163.8 L298.0,163.9 L316.0,163.9 L316.0,163.9 L334.0,163.9 L334.0,163.8 L352.0,163.8 L352.0,163.1 L370.0,163.1 L370.0,164.0 L10.0,164.0 Z"/><path class="series" d="M10.0,21.4 L10.0,21.4 L28.0,21.4 L28.0,28.7 L46.0,28.7 L46.0,91.6 L64.0,91.6 L64.0,134.7 L82.0,134.7 L82.0,152.0 L100.0,152.0 L100.0,158.7 L118.0,158.7 L118.0,160.6 L136.0,160.6 L136.0,162.3 L154.0,162.3 L154.0,163.0 L172.0,163.0 L172.0,163.4 L190.0,163.4 L190.0,163.4 L208.0,163.4 L208.0,163.6 L226.0,163.6 L226.0,163.5 L244.0,163.5 L244.0,163.8 L262.0,163.8 L262.0,163.8 L280.0,163.8 L280.0,163.8 L298.0,163.8 L298.0,163.9 L316.0,163.9 L316.0,163.9 L334.0,163.9 L334.0,163.8 L352.0,163.8 L352.0,163.1 L370.0,163.1"/><path class="series s2" d="M10.0,51.8 L10.0,51.8 L28.0,51.8 L28.0,70.9 L46.0,70.9 L46.0,89.3 L64.0,89.3 L64.0,112.5 L82.0,112.5 L82.0,135.1 L100.0,135.1 L100.0,146.5 L118.0,146.5 L118.0,154.8 L136.0,154.8 L136.0,159.4 L154.0,159.4 L154.0,160.5 L172.0,160.5 L172.0,161.7 L190.0,161.7 L190.0,161.4 L208.0,161.4 L208.0,162.6 L226.0,162.6 L226.0,163.4 L244.0,163.4 L244.0,163.3 L262.0,163.3 L262.0,163.5 L280.0,163.5 L280.0,163.6 L298.0,163.6 L298.0,163.7 L316.0,163.7 L316.0,163.8 L334.0,163.8 L334.0,163.7 L352.0,163.7 L352.0,161.6 L370.0,161.6"/><line class="axis" x1="10" x2="370" y1="164.0" y2="164.0"/><text class="tick" x="10.0" y="182" text-anchor="start">0,00</text><text class="tick" x="190.0" y="182" text-anchor="middle">2,07</text><text class="tick" x="370.0" y="182" text-anchor="end">4,14</text><rect class="hit" x="10.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 0,00 a 0,21 · referência 35,0% · produção 27,6%"/><rect class="hit" x="28.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 0,21 a 0,41 · referência 33,2% · produção 22,9%"/><rect class="hit" x="46.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 0,41 a 0,62 · referência 17,8% · produção 18,4%"/><rect class="hit" x="64.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 0,62 a 0,83 · referência 7,2% · produção 12,7%"/><rect class="hit" x="82.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 0,83 a 1,04 · referência 3,0% · produção 7,1%"/><rect class="hit" x="100.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 1,04 a 1,24 · referência 1,3% · produção 4,3%"/><rect class="hit" x="118.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 1,24 a 1,45 · referência 0,8% · produção 2,3%"/><rect class="hit" x="136.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 1,45 a 1,66 · referência 0,4% · produção 1,1%"/><rect class="hit" x="154.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 1,66 a 1,86 · referência 0,2% · produção 0,9%"/><rect class="hit" x="172.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 1,86 a 2,07 · referência 0,1% · produção 0,6%"/><rect class="hit" x="190.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 2,07 a 2,28 · referência 0,1% · produção 0,6%"/><rect class="hit" x="208.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 2,28 a 2,49 · referência 0,1% · produção 0,4%"/><rect class="hit" x="226.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 2,49 a 2,69 · referência 0,1% · produção 0,1%"/><rect class="hit" x="244.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 2,69 a 2,90 · referência 0,0% · produção 0,2%"/><rect class="hit" x="262.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 2,90 a 3,11 · referência 0,0% · produção 0,1%"/><rect class="hit" x="280.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 3,11 a 3,31 · referência 0,0% · produção 0,1%"/><rect class="hit" x="298.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 3,31 a 3,52 · referência 0,0% · produção 0,1%"/><rect class="hit" x="316.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 3,52 a 3,73 · referência 0,0% · produção 0,1%"/><rect class="hit" x="334.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 3,73 a 3,94 · referência 0,0% · produção 0,1%"/><rect class="hit" x="352.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Comprometimento de renda de 3,94 a 4,14 · referência 0,2% · produção 0,6%"/></svg></div>
+    <div class="card"><h3>Score do modelo</h3><svg viewBox="0 0 380 190" role="img" aria-label="Distribuição de Score do modelo: referência e produção"><path class="area-ref" d="M10.0,21.4 L10.0,21.4 L28.0,21.4 L28.0,128.1 L46.0,128.1 L46.0,146.3 L64.0,146.3 L64.0,156.8 L82.0,156.8 L82.0,159.0 L100.0,159.0 L100.0,160.2 L118.0,160.2 L118.0,161.5 L136.0,161.5 L136.0,161.8 L154.0,161.8 L154.0,162.0 L172.0,162.0 L172.0,162.5 L190.0,162.5 L190.0,162.6 L208.0,162.6 L208.0,162.7 L226.0,162.7 L226.0,163.0 L244.0,163.0 L244.0,163.0 L262.0,163.0 L262.0,163.0 L280.0,163.0 L280.0,163.2 L298.0,163.2 L298.0,163.3 L316.0,163.3 L316.0,163.4 L334.0,163.4 L334.0,163.5 L352.0,163.5 L352.0,163.5 L370.0,163.5 L370.0,164.0 L10.0,164.0 Z"/><path class="series" d="M10.0,21.4 L10.0,21.4 L28.0,21.4 L28.0,128.1 L46.0,128.1 L46.0,146.3 L64.0,146.3 L64.0,156.8 L82.0,156.8 L82.0,159.0 L100.0,159.0 L100.0,160.2 L118.0,160.2 L118.0,161.5 L136.0,161.5 L136.0,161.8 L154.0,161.8 L154.0,162.0 L172.0,162.0 L172.0,162.5 L190.0,162.5 L190.0,162.6 L208.0,162.6 L208.0,162.7 L226.0,162.7 L226.0,163.0 L244.0,163.0 L244.0,163.0 L262.0,163.0 L262.0,163.0 L280.0,163.0 L280.0,163.2 L298.0,163.2 L298.0,163.3 L316.0,163.3 L316.0,163.4 L334.0,163.4 L334.0,163.5 L352.0,163.5 L352.0,163.5 L370.0,163.5"/><path class="series s2" d="M10.0,75.3 L10.0,75.3 L28.0,75.3 L28.0,102.6 L46.0,102.6 L46.0,133.9 L64.0,133.9 L64.0,150.9 L82.0,150.9 L82.0,157.2 L100.0,157.2 L100.0,158.9 L118.0,158.9 L118.0,160.1 L136.0,160.1 L136.0,160.8 L154.0,160.8 L154.0,161.8 L172.0,161.8 L172.0,161.5 L190.0,161.5 L190.0,161.8 L208.0,161.8 L208.0,162.7 L226.0,162.7 L226.0,162.2 L244.0,162.2 L244.0,162.3 L262.0,162.3 L262.0,162.8 L280.0,162.8 L280.0,163.0 L298.0,163.0 L298.0,163.2 L316.0,163.2 L316.0,163.4 L334.0,163.4 L334.0,163.1 L352.0,163.1 L352.0,163.2 L370.0,163.2"/><line class="axis" x1="10" x2="370" y1="164.0" y2="164.0"/><text class="tick" x="10.0" y="182" text-anchor="start">0,00</text><text class="tick" x="190.0" y="182" text-anchor="middle">0,37</text><text class="tick" x="370.0" y="182" text-anchor="end">0,74</text><rect class="hit" x="10.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,00 a 0,04 · referência 62,2% · produção 38,7%"/><rect class="hit" x="28.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,04 a 0,08 · referência 15,7% · produção 26,8%"/><rect class="hit" x="46.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,08 a 0,11 · referência 7,7% · produção 13,1%"/><rect class="hit" x="64.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,11 a 0,15 · referência 3,2% · produção 5,7%"/><rect class="hit" x="82.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,15 a 0,19 · referência 2,2% · produção 2,9%"/><rect class="hit" x="100.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,19 a 0,22 · referência 1,6% · produção 2,2%"/><rect class="hit" x="118.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,22 a 0,26 · referência 1,1% · produção 1,7%"/><rect class="hit" x="136.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,26 a 0,30 · referência 1,0% · produção 1,4%"/><rect class="hit" x="154.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,30 a 0,33 · referência 0,9% · produção 0,9%"/><rect class="hit" x="172.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,33 a 0,37 · referência 0,7% · produção 1,1%"/><rect class="hit" x="190.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,37 a 0,41 · referência 0,6% · produção 0,9%"/><rect class="hit" x="208.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,41 a 0,44 · referência 0,6% · produção 0,6%"/><rect class="hit" x="226.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,44 a 0,48 · referência 0,5% · produção 0,8%"/><rect class="hit" x="244.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,48 a 0,52 · referência 0,5% · produção 0,8%"/><rect class="hit" x="262.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,52 a 0,55 · referência 0,4% · produção 0,5%"/><rect class="hit" x="280.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,55 a 0,59 · referência 0,4% · produção 0,5%"/><rect class="hit" x="298.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,59 a 0,63 · referência 0,3% · produção 0,4%"/><rect class="hit" x="316.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,63 a 0,66 · referência 0,3% · produção 0,3%"/><rect class="hit" x="334.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,66 a 0,70 · referência 0,2% · produção 0,4%"/><rect class="hit" x="352.0" y="10" width="18.0" height="154" tabindex="0" data-tip="Score do modelo de 0,70 a 0,74 · referência 0,2% · produção 0,4%"/></svg></div>
+  </div>
+
+  <h2>Alertas</h2>
+  <p class="sub">Todo alerta traz severidade, métrica, limiar e a ação recomendada. Os mesmos
+  registros estão em <code>reports/logs/alerts.jsonl</code>.</p>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Lote</th><th>Severidade</th><th>Tipo</th><th>O que aconteceu</th><th>Ação recomendada</th></tr></thead>
+      <tbody>
+        <tr><td>mar/26</td>
+        <td><span class="badge warning">▲ Atenção</span></td>
+        <td>Drift de feature</td><td>Idade (age): PSI=0.107, KS D=0.147, média -7.0% vs. referência</td><td>Investigar a causa na origem e aumentar a frequência de monitoramento.</td></tr>
+        <tr><td>mar/26</td>
+        <td><span class="badge warning">▲ Atenção</span></td>
+        <td>Degradação de performance</td><td>AUC caiu de 0.854 (referência) para 0.832 (queda de 0.022)</td><td>Degradação confirmada com rótulos: retreinar com janela recente e reavaliar antes de promover (ver README, plano de mitigação).</td></tr>
+        <tr><td>abr/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Contrato de dados violado</td><td>contrato VIOLADO — 910 falhas em 6120 linhas (monthly_income: not_nullable: 306; client_id: field_uniqueness: 240; linha inteiramente duplicada: 120; age: in_range(18, 100): 91; debt_ratio: in_range(0, 10): 61; late_90_days: in_range(0, 20): 60; monthly_income: greater_than(0): 31; coluna fora do contrato: cpf: 1)</td><td>Lote bloqueado e enviado à quarentena. Acionar o time dono da origem e reprocessar após a correção.</td></tr>
+        <tr><td>abr/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Drift de feature</td><td>Idade (age): PSI=0.279, KS D=0.250, média -12.4% vs. referência</td><td>Abrir incidente: confirmar se a mudança é real (economia/público) ou defeito de pipeline.</td></tr>
+        <tr><td>abr/26</td>
+        <td><span class="badge warning">▲ Atenção</span></td>
+        <td>Drift de feature</td><td>Utilização do rotativo (revolving_utilization): PSI=0.179, KS D=0.200, média +38.7% vs. referência</td><td>Investigar a causa na origem e aumentar a frequência de monitoramento.</td></tr>
+        <tr><td>abr/26</td>
+        <td><span class="badge warning">▲ Atenção</span></td>
+        <td>Drift de feature</td><td>Renda mensal (monthly_income): PSI=0.160, KS D=0.166, média +31.1% vs. referência</td><td>Investigar a causa na origem e aumentar a frequência de monitoramento.</td></tr>
+        <tr><td>abr/26</td>
+        <td><span class="badge warning">▲ Atenção</span></td>
+        <td>Drift de predição</td><td>Score do modelo: PSI=0.174, score médio +26.9% vs. referência</td><td>A distribuição de scores mudou: revisar o limiar de aprovação e priorizar a coleta de rótulos recentes.</td></tr>
+        <tr><td>mai/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Drift de feature</td><td>Idade (age): PSI=0.394, KS D=0.300, média -14.8% vs. referência</td><td>Abrir incidente: confirmar se a mudança é real (economia/público) ou defeito de pipeline.</td></tr>
+        <tr><td>mai/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Drift de feature</td><td>Utilização do rotativo (revolving_utilization): PSI=0.308, KS D=0.251, média +48.5% vs. referência</td><td>Abrir incidente: confirmar se a mudança é real (economia/público) ou defeito de pipeline.</td></tr>
+        <tr><td>mai/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Drift de feature</td><td>Renda mensal (monthly_income): PSI=0.225, KS D=0.195, média +38.2% vs. referência</td><td>Abrir incidente: confirmar se a mudança é real (economia/público) ou defeito de pipeline.</td></tr>
+        <tr><td>mai/26</td>
+        <td><span class="badge warning">▲ Atenção</span></td>
+        <td>Drift de feature</td><td>Comprometimento de renda (debt_ratio): PSI=0.154, KS D=0.164, média +35.6% vs. referência</td><td>Investigar a causa na origem e aumentar a frequência de monitoramento.</td></tr>
+        <tr><td>mai/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Drift de dataset</td><td>30% das features em drift crítico (PSI &gt;= 0.2)</td><td>Mudança ampla de população: revisar política de crédito e planejar retreino.</td></tr>
+        <tr><td>mai/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Drift de predição</td><td>Score do modelo: PSI=0.291, score médio +32.2% vs. referência</td><td>A distribuição de scores mudou: revisar o limiar de aprovação e priorizar a coleta de rótulos recentes.</td></tr>
+        <tr><td>mai/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Degradação de performance</td><td>AUC caiu de 0.854 (referência) para 0.739 (queda de 0.114)</td><td>Degradação confirmada com rótulos: retreinar com janela recente e reavaliar antes de promover (ver README, plano de mitigação).</td></tr>
+        <tr><td>jun/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Drift de feature</td><td>Idade (age): PSI=0.464, KS D=0.329, média -15.9% vs. referência</td><td>Abrir incidente: confirmar se a mudança é real (economia/público) ou defeito de pipeline.</td></tr>
+        <tr><td>jun/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Drift de feature</td><td>Utilização do rotativo (revolving_utilization): PSI=0.436, KS D=0.303, média +59.8% vs. referência</td><td>Abrir incidente: confirmar se a mudança é real (economia/público) ou defeito de pipeline.</td></tr>
+        <tr><td>jun/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Drift de feature</td><td>Renda mensal (monthly_income): PSI=0.276, KS D=0.217, média +43.0% vs. referência</td><td>Abrir incidente: confirmar se a mudança é real (economia/público) ou defeito de pipeline.</td></tr>
+        <tr><td>jun/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Drift de feature</td><td>Comprometimento de renda (debt_ratio): PSI=0.223, KS D=0.193, média +48.1% vs. referência</td><td>Abrir incidente: confirmar se a mudança é real (economia/público) ou defeito de pipeline.</td></tr>
+        <tr><td>jun/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Drift de dataset</td><td>40% das features em drift crítico (PSI &gt;= 0.2)</td><td>Mudança ampla de população: revisar política de crédito e planejar retreino.</td></tr>
+        <tr><td>jun/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Drift de predição</td><td>Score do modelo: PSI=0.415, score médio +41.9% vs. referência</td><td>A distribuição de scores mudou: revisar o limiar de aprovação e priorizar a coleta de rótulos recentes.</td></tr>
+        <tr><td>jun/26</td>
+        <td><span class="badge critical">✕ Crítico</span></td>
+        <td>Degradação de performance</td><td>AUC caiu de 0.854 (referência) para 0.677 (queda de 0.177)</td><td>Degradação confirmada com rótulos: retreinar com janela recente e reavaliar antes de promover (ver README, plano de mitigação).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Qualidade de dados e contrato</h2>
+  <div class="grid cols-2">
+    <div class="card">
+      <h3>Curadoria da referência: linhas barradas por regra</h3>
+      <p class="meta">32.513 de
+      150.000 linhas brutas
+      (21,7%) foram para quarentena.
+      Uma linha pode violar mais de uma regra.</p>
+      <div class="bar-row"><code>monthly_income: not_nullable</code>
+        <div class="track"><div class="fill" style="width: 100.0%"></div></div>
+        <div class="n">29.731</div></div>
+      <div class="bar-row"><code>dependents: not_nullable</code>
+        <div class="track"><div class="fill" style="width: 13.198345161615823%"></div></div>
+        <div class="n">3.924</div></div>
+      <div class="bar-row"><code>debt_ratio: in_range(0, 10)</code>
+        <div class="track"><div class="fill" style="width: 7.083515522518583%"></div></div>
+        <div class="n">2.106</div></div>
+      <div class="bar-row"><code>monthly_income: greater_than(0)</code>
+        <div class="track"><div class="fill" style="width: 5.495946991355824%"></div></div>
+        <div class="n">1.634</div></div>
+      <div class="bar-row"><code>revolving_utilization: in_range(0, 2)</code>
+        <div class="track"><div class="fill" style="width: 1.0%"></div></div>
+        <div class="n">278</div></div>
+      <div class="bar-row"><code>late_30_59_days: in_range(0, 20)</code>
+        <div class="track"><div class="fill" style="width: 1.0%"></div></div>
+        <div class="n">148</div></div>
+      <div class="bar-row"><code>late_90_days: in_range(0, 20)</code>
+        <div class="track"><div class="fill" style="width: 1.0%"></div></div>
+        <div class="n">148</div></div>
+      <div class="bar-row"><code>late_60_89_days: in_range(0, 20)</code>
+        <div class="track"><div class="fill" style="width: 1.0%"></div></div>
+        <div class="n">148</div></div>
+      <div class="bar-row"><code>monthly_income: less_than_or_equal_to(100000)</code>
+        <div class="track"><div class="fill" style="width: 1.0%"></div></div>
+        <div class="n">70</div></div>
+      <div class="bar-row"><code>age: in_range(18, 100)</code>
+        <div class="track"><div class="fill" style="width: 1.0%"></div></div>
+        <div class="n">7</div></div>
+    </div>
+    <div class="card">
+      <h3>Entregas bloqueadas em produção</h3>
+      <p><span class="badge critical">✕ Bloqueada</span> Lote abr/26, entrega 1:
+      910 violações em 6.120 linhas. O lote foi para
+      quarentena e a entrega corrigida passou em seguida.</p>
+      <table>
+        <thead><tr><th>Regra violada</th><th class="num">Ocorrências</th></tr></thead>
+        <tbody>          <tr><td><code>monthly_income: not_nullable</code></td><td class="num">306</td></tr>
+          <tr><td><code>client_id: field_uniqueness</code></td><td class="num">240</td></tr>
+          <tr><td><code>linha inteiramente duplicada</code></td><td class="num">120</td></tr>
+          <tr><td><code>age: in_range(18, 100)</code></td><td class="num">91</td></tr>
+          <tr><td><code>debt_ratio: in_range(0, 10)</code></td><td class="num">61</td></tr>
+          <tr><td><code>late_90_days: in_range(0, 20)</code></td><td class="num">60</td></tr>
+          <tr><td><code>monthly_income: greater_than(0)</code></td><td class="num">31</td></tr>
+          <tr><td><code>coluna fora do contrato: cpf</code></td><td class="num">1</td></tr>
+</tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2>Saúde do pipeline e da infraestrutura</h2>
+  <div class="grid cols-2">
+    <div class="card table-wrap">
+      <h3>Objetivos de nível de serviço (SLOs)</h3>
+      <table>
+        <thead><tr><th>Indicador</th><th>Meta</th><th>Medido</th><th>Status</th></tr></thead>
+        <tbody>          <tr><td>Latência de inferência por 1.000 linhas</td><td>≤ 50,00 ms</td><td>pior lote: 2,85 ms</td>
+          <td><span class="badge ok">✓ Cumprido</span></td></tr>
+          <tr><td>Volume mínimo por lote</td><td>≥ 5.000 linhas</td><td>menor lote: 6.000 linhas</td>
+          <td><span class="badge ok">✓ Cumprido</span></td></tr>
+          <tr><td>Lotes entregues ao modelo</td><td>6 de 6</td><td>6 de 6</td>
+          <td><span class="badge ok">✓ Cumprido</span></td></tr>
+          <tr><td>Dado inválido que chegou ao modelo</td><td>0 lotes</td><td>0 lotes (1 entrega(s) bloqueada(s) antes da inferência)</td>
+          <td><span class="badge ok">✓ Cumprido</span></td></tr>
+</tbody>
+      </table>
+      <p class="meta" style="margin-top:12px">Pico de memória do processo:
+      816 MB · duração total:
+      22,23 s</p>
+    </div>
+    <div class="card table-wrap">
+      <h3>Tarefas executadas</h3>
+      <table>
+        <thead><tr><th>Tarefa</th><th class="num">Execuções</th><th class="num">Falhas</th><th class="num">Média (ms)</th><th class="num">Máx. (ms)</th></tr></thead>
+        <tbody>          <tr><td>Ingestão do bruto + contrato</td><td class="num">1</td>
+          <td class="num">0</td>
+          <td class="num">785</td><td class="num">785</td></tr>
+          <tr><td>Treino do baseline</td><td class="num">1</td>
+          <td class="num">0</td>
+          <td class="num">626</td><td class="num">626</td></tr>
+          <tr><td>Registro do treino no MLflow</td><td class="num">1</td>
+          <td class="num">0</td>
+          <td class="num">3.180</td><td class="num">3.180</td></tr>
+          <tr><td>Extração do lote mensal</td><td class="num">6</td>
+          <td class="num">0</td>
+          <td class="num">27</td><td class="num">29</td></tr>
+          <tr><td>Validação do contrato</td><td class="num">7</td>
+          <td class="num"><span class="badge critical">✕ 1</span></td>
+          <td class="num">32</td><td class="num">113</td></tr>
+          <tr><td>Inferência (score)</td><td class="num">6</td>
+          <td class="num">0</td>
+          <td class="num">13</td><td class="num">17</td></tr>
+          <tr><td>Detecção de drift (PSI/KS)</td><td class="num">6</td>
+          <td class="num">0</td>
+          <td class="num">58</td><td class="num">69</td></tr>
+          <tr><td>Avaliação com rótulos</td><td class="num">6</td>
+          <td class="num">0</td>
+          <td class="num">31</td><td class="num">32</td></tr>
+          <tr><td>Relatório Evidently</td><td class="num">6</td>
+          <td class="num">0</td>
+          <td class="num">2.401</td><td class="num">2.553</td></tr>
+          <tr><td>Registro do lote no MLflow</td><td class="num">6</td>
+          <td class="num">0</td>
+          <td class="num">56</td><td class="num">67</td></tr>
+          <tr><td>Análise causal + retreino</td><td class="num">1</td>
+          <td class="num">0</td>
+          <td class="num">1.451</td><td class="num">1.451</td></tr>
+          <tr><td>Checagem de viés</td><td class="num">1</td>
+          <td class="num">0</td>
+          <td class="num">15</td><td class="num">15</td></tr>
+          <tr><td>Exportação Prometheus</td><td class="num">1</td>
+          <td class="num">0</td>
+          <td class="num">2</td><td class="num">2</td></tr>
+          <tr><td>Geração do dashboard</td><td class="num">1</td>
+          <td class="num">0</td>
+          <td class="num">37</td><td class="num">37</td></tr>
+</tbody>
+      </table>
+      <p class="meta" style="margin-top:8px">A falha em "Validação do contrato" é esperada:
+      é o contrato bloqueando a entrega defeituosa.</p>
+    </div>
+  </div>
+
+  <h2>Análise causal: qual mudança causou qual sintoma?</h2>
+  <p class="sub">Cada linha liga <em>um único</em> mecanismo de drift na intensidade máxima,
+  mantendo o resto fixo (mesmos clientes, mesma semente). A diferença para o controle é o
+  efeito causal daquele mecanismo.</p>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Intervenção</th><th>Features em drift crítico</th><th class="num">PSI do score</th><th class="num">AUC</th><th class="num">Δ AUC</th><th class="num">Aprovação</th><th class="num">Δ aprovação (p.p.)</th><th class="num">Inadimpl. aprovados</th></tr></thead>
+      <tbody>        <tr><td>Controle (nada muda)</td><td><code>—</code></td>
+        <td class="num">0,002</td><td class="num">0,863</td>
+        <td class="num">+0,000</td>
+        <td class="num">79,9%</td>
+        <td class="num">+0,0</td>
+        <td class="num">2,7%</td></tr>
+        <tr><td>Só inflação da renda</td><td><code>monthly_income</code></td>
+        <td class="num">0,003</td><td class="num">0,860</td>
+        <td class="num">-0,003</td>
+        <td class="num">80,5%</td>
+        <td class="num">+0,6</td>
+        <td class="num">2,7%</td></tr>
+        <tr><td>Só estresse de crédito (rotativo + dívida)</td><td><code>revolving_utilization, debt_ratio</code></td>
+        <td class="num">0,242</td><td class="num">0,858</td>
+        <td class="num">-0,005</td>
+        <td class="num">72,6%</td>
+        <td class="num">-7,3</td>
+        <td class="num">2,3%</td></tr>
+        <tr><td>Só novo perfil (mais jovens)</td><td><code>age</code></td>
+        <td class="num">0,039</td><td class="num">0,849</td>
+        <td class="num">-0,014</td>
+        <td class="num">74,7%</td>
+        <td class="num">-5,3</td>
+        <td class="num">2,9%</td></tr>
+        <tr><td>Só choque de desemprego (conceito)</td><td><code>—</code></td>
+        <td class="num">0,002</td><td class="num">0,678</td>
+        <td class="num">-0,185</td>
+        <td class="num">79,9%</td>
+        <td class="num">+0,0</td>
+        <td class="num">9,2%</td></tr>
+        <tr><td>Todos os drifts de dados, sem choque</td><td><code>age, revolving_utilization, monthly_income, debt_ratio</code></td>
+        <td class="num">0,411</td><td class="num">0,833</td>
+        <td class="num">-0,030</td>
+        <td class="num">68,8%</td>
+        <td class="num">-11,2</td>
+        <td class="num">2,9%</td></tr>
+        <tr><td>Tudo junto (junho/2026)</td><td><code>age, revolving_utilization, monthly_income, debt_ratio</code></td>
+        <td class="num">0,415</td><td class="num">0,677</td>
+        <td class="num">-0,186</td>
+        <td class="num">68,4%</td>
+        <td class="num">-11,5</td>
+        <td class="num">9,2%</td></tr>
+</tbody>
+    </table>
+  </div>
+
+  <div class="grid cols-2" style="margin-top:12px">
+    <div class="card table-wrap">
+      <h3>Prescrição: o retreino recupera o modelo?</h3>
+      <p class="meta">Teste fora do tempo em jun/26; retreino com
+      a referência + lotes rotulados de mar/26, abr/26, mai/26.</p>
+      <table>
+        <thead><tr><th>Modelo</th><th class="num">AUC</th><th class="num">Aprovação</th><th class="num">Inadimpl. aprovados</th><th class="num">Brier</th></tr></thead>
+        <tbody>
+          <tr><td>Em produção (limiar original)</td><td class="num">0,677</td>
+          <td class="num">68,4%</td>
+          <td class="num">9,2%</td>
+          <td class="num">0,111</td></tr>
+          <tr><td>Em produção (limiar recalibrado)</td><td class="num">0,677</td>
+          <td class="num">80,0%</td>
+          <td class="num">10,1%</td>
+          <td class="num">0,111</td></tr>
+          <tr><td>Retreinado com dados recentes</td><td class="num">0,701</td>
+          <td class="num">80,0%</td>
+          <td class="num">9,3%</td>
+          <td class="num">0,107</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card table-wrap">
+      <h3>Viés por faixa etária</h3>
+      <p class="meta">Impacto desproporcional = aprovação da faixa ÷ aprovação da faixa mais
+      aprovada. Abaixo de 0,80 acende alerta (regra dos 80%).</p>
+      <table>
+        <thead><tr><th>Período</th><th>Faixa</th><th class="num">Participação</th><th class="num">Aprovação</th><th class="num">Bons negados</th><th>Impacto desproporcional</th></tr></thead>
+        <tbody>          <tr><td>Referência</td><td>18-29</td>
+          <td class="num">6,0%</td><td class="num">64,4%</td>
+          <td class="num">29,6%</td>
+          <td><span class="badge warning">▲ 0,70</span></td></tr>
+          <tr><td>Referência</td><td>30-44</td>
+          <td class="num">27,8%</td><td class="num">71,1%</td>
+          <td class="num">24,2%</td>
+          <td><span class="badge warning">▲ 0,78</span></td></tr>
+          <tr><td>Referência</td><td>45-59</td>
+          <td class="num">36,9%</td><td class="num">79,5%</td>
+          <td class="num">16,7%</td>
+          <td><span class="badge ok">✓ 0,87</span></td></tr>
+          <tr><td>Referência</td><td>60+</td>
+          <td class="num">29,3%</td><td class="num">91,4%</td>
+          <td class="num">6,8%</td>
+          <td><span class="badge ok">✓ 1,00</span></td></tr>
+          <tr><td>jun/26</td><td>18-29</td>
+          <td class="num">20,4%</td><td class="num">58,0%</td>
+          <td class="num">38,2%</td>
+          <td><span class="badge warning">▲ 0,66</span></td></tr>
+          <tr><td>jun/26</td><td>30-44</td>
+          <td class="num">38,2%</td><td class="num">61,9%</td>
+          <td class="num">33,6%</td>
+          <td><span class="badge warning">▲ 0,71</span></td></tr>
+          <tr><td>jun/26</td><td>45-59</td>
+          <td class="num">23,2%</td><td class="num">73,3%</td>
+          <td class="num">25,1%</td>
+          <td><span class="badge ok">✓ 0,84</span></td></tr>
+          <tr><td>jun/26</td><td>60+</td>
+          <td class="num">18,2%</td><td class="num">87,5%</td>
+          <td class="num">11,2%</td>
+          <td><span class="badge ok">✓ 1,00</span></td></tr>
+</tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="meta" style="margin-top:32px">Fontes: <code>reports/monitoring_summary.json</code>,
+  <code>reports/logs/*.jsonl</code>, <code>reports/metrics.prom</code> e os relatórios do Evidently em
+  <code>reports/evidently/</code>. O histórico por lote também está no MLflow
+  (experimento <code>credit-scoring-observability</code>).</p>
+</main>
+<div id="tip" role="tooltip"></div>
+<script>
+(function () {
+  var tip = document.getElementById("tip");
+  function show(el, x, y) {
+    tip.textContent = el.getAttribute("data-tip");
+    tip.style.display = "block";
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = Math.max(8, Math.min(x + 12, window.innerWidth - w - 8)) + "px";
+    tip.style.top = Math.max(8, y - h - 12) + "px";
+  }
+  function hide() { tip.style.display = "none"; }
+  document.querySelectorAll("[data-tip]").forEach(function (el) {
+    el.addEventListener("pointermove", function (e) { show(el, e.clientX, e.clientY); });
+    el.addEventListener("pointerleave", hide);
+    el.addEventListener("focus", function () {
+      var r = el.getBoundingClientRect(); show(el, r.left + r.width / 2, r.top);
+    });
+    el.addEventListener("blur", hide);
+  });
+})();
+</script>
+</body>
+</html>

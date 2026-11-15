@@ -1,0 +1,8 @@
+scenario,features_critical,n_features_critical,psi_score,auc,approval_rate,bad_rate_approved,default_rate,delta_auc,delta_approval_pp,delta_bad_rate_pp
+Controle (nada muda),—,0,0.0019,0.863,0.7993,0.0269,0.0737,0.0,0.0,0.0
+Só inflação da renda,monthly_income,1,0.003,0.86,0.8052,0.0273,0.0737,-0.003,0.59,0.04
+Só estresse de crédito (rotativo + dívida),"revolving_utilization, debt_ratio",2,0.2423,0.8581,0.7258,0.0232,0.0737,-0.0049,-7.35,-0.37
+Só novo perfil (mais jovens),age,1,0.0391,0.8486,0.7467,0.0288,0.0843,-0.0144,-5.26,0.19
+Só choque de desemprego (conceito),—,0,0.0019,0.6777,0.7993,0.0922,0.1277,-0.1853,0.0,6.53
+"Todos os drifts de dados, sem choque","age, revolving_utilization, monthly_income, debt_ratio",4,0.4106,0.8331,0.6875,0.0291,0.0843,-0.0299,-11.18,0.22
+Tudo junto (junho/2026),"age, revolving_utilization, monthly_income, debt_ratio",4,0.4147,0.677,0.6843,0.0923,0.1362,-0.186,-11.5,6.54

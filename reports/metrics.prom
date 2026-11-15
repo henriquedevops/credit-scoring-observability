@@ -1,0 +1,126 @@
+# HELP credit_feature_psi PSI da coluna vs. referência
+# TYPE credit_feature_psi gauge
+credit_feature_psi{batch="2026-01",column="real_estate_loans"} 0.0038
+credit_feature_psi{batch="2026-01",column="late_90_days"} 0.0034
+credit_feature_psi{batch="2026-01",column="monthly_income"} 0.0023
+credit_feature_psi{batch="2026-01",column="open_credit_lines"} 0.0022
+credit_feature_psi{batch="2026-01",column="debt_ratio"} 0.0017
+credit_feature_psi{batch="2026-01",column="revolving_utilization"} 0.0015
+credit_feature_psi{batch="2026-01",column="dependents"} 0.0014
+credit_feature_psi{batch="2026-01",column="age"} 0.0013
+credit_feature_psi{batch="2026-01",column="late_30_59_days"} 0.001
+credit_feature_psi{batch="2026-01",column="late_60_89_days"} 0.001
+credit_feature_psi{batch="2026-01",column="score"} 0.0009
+credit_feature_psi{batch="2026-02",column="late_90_days"} 0.0039
+credit_feature_psi{batch="2026-02",column="late_30_59_days"} 0.0031
+credit_feature_psi{batch="2026-02",column="revolving_utilization"} 0.0031
+credit_feature_psi{batch="2026-02",column="real_estate_loans"} 0.0023
+credit_feature_psi{batch="2026-02",column="age"} 0.0022
+credit_feature_psi{batch="2026-02",column="monthly_income"} 0.0018
+credit_feature_psi{batch="2026-02",column="open_credit_lines"} 0.0016
+credit_feature_psi{batch="2026-02",column="score"} 0.0015
+credit_feature_psi{batch="2026-02",column="debt_ratio"} 0.001
+credit_feature_psi{batch="2026-02",column="late_60_89_days"} 0.001
+credit_feature_psi{batch="2026-02",column="dependents"} 0.001
+credit_feature_psi{batch="2026-03",column="age"} 0.1074
+credit_feature_psi{batch="2026-03",column="monthly_income"} 0.0624
+credit_feature_psi{batch="2026-03",column="score"} 0.0476
+credit_feature_psi{batch="2026-03",column="revolving_utilization"} 0.0463
+credit_feature_psi{batch="2026-03",column="debt_ratio"} 0.0385
+credit_feature_psi{batch="2026-03",column="real_estate_loans"} 0.0184
+credit_feature_psi{batch="2026-03",column="open_credit_lines"} 0.0113
+credit_feature_psi{batch="2026-03",column="dependents"} 0.0038
+credit_feature_psi{batch="2026-03",column="late_90_days"} 0.002
+credit_feature_psi{batch="2026-03",column="late_60_89_days"} 0.0007
+credit_feature_psi{batch="2026-03",column="late_30_59_days"} 0.0006
+credit_feature_psi{batch="2026-04",column="age"} 0.2786
+credit_feature_psi{batch="2026-04",column="revolving_utilization"} 0.1789
+credit_feature_psi{batch="2026-04",column="score"} 0.1737
+credit_feature_psi{batch="2026-04",column="monthly_income"} 0.1598
+credit_feature_psi{batch="2026-04",column="debt_ratio"} 0.0985
+credit_feature_psi{batch="2026-04",column="real_estate_loans"} 0.0381
+credit_feature_psi{batch="2026-04",column="open_credit_lines"} 0.034
+credit_feature_psi{batch="2026-04",column="dependents"} 0.0076
+credit_feature_psi{batch="2026-04",column="late_60_89_days"} 0.0041
+credit_feature_psi{batch="2026-04",column="late_30_59_days"} 0.0019
+credit_feature_psi{batch="2026-04",column="late_90_days"} 0.0018
+credit_feature_psi{batch="2026-05",column="age"} 0.3941
+credit_feature_psi{batch="2026-05",column="revolving_utilization"} 0.3082
+credit_feature_psi{batch="2026-05",column="score"} 0.2908
+credit_feature_psi{batch="2026-05",column="monthly_income"} 0.2247
+credit_feature_psi{batch="2026-05",column="debt_ratio"} 0.1536
+credit_feature_psi{batch="2026-05",column="real_estate_loans"} 0.0602
+credit_feature_psi{batch="2026-05",column="open_credit_lines"} 0.0528
+credit_feature_psi{batch="2026-05",column="dependents"} 0.0091
+credit_feature_psi{batch="2026-05",column="late_60_89_days"} 0.0026
+credit_feature_psi{batch="2026-05",column="late_30_59_days"} 0.0021
+credit_feature_psi{batch="2026-05",column="late_90_days"} 0.0014
+credit_feature_psi{batch="2026-06",column="age"} 0.4643
+credit_feature_psi{batch="2026-06",column="revolving_utilization"} 0.436
+credit_feature_psi{batch="2026-06",column="score"} 0.4147
+credit_feature_psi{batch="2026-06",column="monthly_income"} 0.276
+credit_feature_psi{batch="2026-06",column="debt_ratio"} 0.2227
+credit_feature_psi{batch="2026-06",column="real_estate_loans"} 0.0791
+credit_feature_psi{batch="2026-06",column="open_credit_lines"} 0.0575
+credit_feature_psi{batch="2026-06",column="dependents"} 0.0153
+credit_feature_psi{batch="2026-06",column="late_60_89_days"} 0.0042
+credit_feature_psi{batch="2026-06",column="late_90_days"} 0.0035
+credit_feature_psi{batch="2026-06",column="late_30_59_days"} 0.0008
+# HELP credit_model_auc AUC do modelo no lote (rótulo tardio)
+# TYPE credit_model_auc gauge
+credit_model_auc{batch="2026-01"} 0.8602
+credit_model_auc{batch="2026-02"} 0.8571
+credit_model_auc{batch="2026-03"} 0.8317
+credit_model_auc{batch="2026-04"} 0.8496
+credit_model_auc{batch="2026-05"} 0.7394
+credit_model_auc{batch="2026-06"} 0.677
+# HELP credit_approval_rate Taxa de aprovação no lote
+# TYPE credit_approval_rate gauge
+credit_approval_rate{batch="2026-01"} 0.8005
+credit_approval_rate{batch="2026-02"} 0.7988
+credit_approval_rate{batch="2026-03"} 0.7667
+credit_approval_rate{batch="2026-04"} 0.7267
+credit_approval_rate{batch="2026-05"} 0.7043
+credit_approval_rate{batch="2026-06"} 0.6843
+# HELP credit_alerts Alertas gerados no lote
+# TYPE credit_alerts gauge
+credit_alerts{batch="2026-01",severity="critical"} 0.0
+credit_alerts{batch="2026-01",severity="warning"} 0.0
+credit_alerts{batch="2026-02",severity="critical"} 0.0
+credit_alerts{batch="2026-02",severity="warning"} 0.0
+credit_alerts{batch="2026-03",severity="critical"} 0.0
+credit_alerts{batch="2026-03",severity="warning"} 2.0
+credit_alerts{batch="2026-04",severity="critical"} 2.0
+credit_alerts{batch="2026-04",severity="warning"} 3.0
+credit_alerts{batch="2026-05",severity="critical"} 6.0
+credit_alerts{batch="2026-05",severity="warning"} 1.0
+credit_alerts{batch="2026-06",severity="critical"} 7.0
+credit_alerts{batch="2026-06",severity="warning"} 0.0
+# HELP credit_batch_rows Linhas processadas no lote
+# TYPE credit_batch_rows gauge
+credit_batch_rows{batch="2026-01"} 6000.0
+credit_batch_rows{batch="2026-02"} 6000.0
+credit_batch_rows{batch="2026-03"} 6000.0
+credit_batch_rows{batch="2026-04"} 6000.0
+credit_batch_rows{batch="2026-05"} 6000.0
+credit_batch_rows{batch="2026-06"} 6000.0
+# HELP credit_inference_latency_ms_per_1k Latência de inferência por 1.000 linhas
+# TYPE credit_inference_latency_ms_per_1k gauge
+credit_inference_latency_ms_per_1k{batch="2026-01"} 1.65
+credit_inference_latency_ms_per_1k{batch="2026-02"} 1.9
+credit_inference_latency_ms_per_1k{batch="2026-03"} 2.18
+credit_inference_latency_ms_per_1k{batch="2026-04"} 2.49
+credit_inference_latency_ms_per_1k{batch="2026-05"} 2.81
+credit_inference_latency_ms_per_1k{batch="2026-06"} 2.85
+# HELP credit_contract_blocked_deliveries Entregas bloqueadas pelo contrato
+# TYPE credit_contract_blocked_deliveries gauge
+credit_contract_blocked_deliveries{batch="2026-01"} 0.0
+credit_contract_blocked_deliveries{batch="2026-02"} 0.0
+credit_contract_blocked_deliveries{batch="2026-03"} 0.0
+credit_contract_blocked_deliveries{batch="2026-04"} 1.0
+credit_contract_blocked_deliveries{batch="2026-05"} 0.0
+credit_contract_blocked_deliveries{batch="2026-06"} 0.0
+# HELP credit_pipeline_tasks Tarefas do pipeline por status
+# TYPE credit_pipeline_tasks gauge
+credit_pipeline_tasks{status="success"} 47.0
+credit_pipeline_tasks{status="failed"} 1.0

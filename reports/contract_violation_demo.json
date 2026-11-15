@@ -1,0 +1,58 @@
+{
+  "batch": "demo-defeituoso",
+  "contract_version": "1.0.0",
+  "rows": 2040,
+  "n_failures": 301,
+  "failures_by_rule": {
+    "monthly_income: not_nullable": 100,
+    "client_id: field_uniqueness": 80,
+    "linha inteiramente duplicada": 40,
+    "age: in_range(18, 100)": 30,
+    "late_90_days: in_range(0, 20)": 20,
+    "debt_ratio: in_range(0, 10)": 20,
+    "monthly_income: greater_than(0)": 10,
+    "coluna fora do contrato: cpf": 1
+  },
+  "examples": [
+    {
+      "rule": "linha inteiramente duplicada",
+      "failure_case": "49",
+      "index": "2029"
+    },
+    {
+      "rule": "coluna fora do contrato: cpf",
+      "failure_case": "cpf",
+      "index": "None"
+    },
+    {
+      "rule": "age: in_range(18, 100)",
+      "failure_case": "16",
+      "index": "598"
+    },
+    {
+      "rule": "client_id: field_uniqueness",
+      "failure_case": "5a2c54ab43a9e488",
+      "index": "2031"
+    },
+    {
+      "rule": "debt_ratio: in_range(0, 10)",
+      "failure_case": "4500.0",
+      "index": "1862"
+    },
+    {
+      "rule": "monthly_income: not_nullable",
+      "failure_case": "nan",
+      "index": "85"
+    },
+    {
+      "rule": "monthly_income: greater_than(0)",
+      "failure_case": "-1500.0",
+      "index": "527"
+    },
+    {
+      "rule": "late_90_days: in_range(0, 20)",
+      "failure_case": "98",
+      "index": "877"
+    }
+  ]
+}
