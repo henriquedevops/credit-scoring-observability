@@ -9,7 +9,7 @@ Regras rígidas (qualquer violação bloqueia o lote):
 1.  ``client_id`` obrigatório, pseudonimizado (16 hex) e **único** — sem duplicatas.
 2.  ``age`` entre 18 e 100 — crédito só para maiores de idade; 0 ou 109 é erro de cadastro.
 3.  ``monthly_income`` **não nula**, > 0 e <= 100.000 — renda é insumo central do score.
-4.  ``debt_ratio`` entre 0 e 10 — acima disso é sintoma de renda faltante na origem.
+4.  ``debt_ratio`` entre 0 e 10 — acima disso é sintoma de renda ausente ou zerada na origem.
 5.  ``revolving_utilization`` entre 0 e 2 — o bruto chega a 50.708 (erro de unidade).
 6.  Contadores de atraso entre 0 e 20 — 96/98 são códigos-sentinela, não contagens.
 7.  ``dependents`` não nulo, entre 0 e 20.
