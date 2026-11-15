@@ -252,6 +252,16 @@ linha JSON com status, duração, CPU, memória e volume. Três arquivos:
   contagem de alertas, entregas bloqueadas, latência, a tag `diagnosis` e o HTML do Evidently como
   artefato. Como as métricas são registradas com `step`, a UI desenha a evolução mês a mês.
 
+**Traces.** Cada execução do pipeline também gera um trace (MLflow Tracing): a raiz
+`credit_scoring_pipeline`, um span `monitor_batch <mês>` por lote e um span por tarefa do
+`RunTracker`, com os alertas como eventos no span que os gerou. Os spans só carregam agregados
+(contagens, PSI, AUC). O destino segue duas variáveis de ambiente, lidas em `config.py`:
+
+| Variável | Padrão | Uso |
+|---|---|---|
+| `MLFLOW_TRACKING_URI` | `sqlite:///mlflow.db` | Onde ficam runs e traces; use `http://127.0.0.1:5000` para gravar pelo servidor do `make mlflow-ui` |
+| `MLFLOW_EXPERIMENT_ID` | `0` | Experimento que recebe os traces (os runs continuam em `credit-scoring-observability`) |
+
 ### Métricas de saúde documentadas
 
 | Grupo | Métrica | Fonte | Limiar / SLO | Valor na execução |

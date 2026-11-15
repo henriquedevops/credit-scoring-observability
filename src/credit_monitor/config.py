@@ -24,7 +24,8 @@ REPORTS_DIR = ROOT / "reports"
 LOGS_DIR = ROOT / "logs"
 
 MLFLOW_TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI", f"sqlite:///{ROOT / 'mlflow.db'}")
-MLFLOW_EXPERIMENT = "credit-scoring-observability"
+MLFLOW_EXPERIMENT = "credit-scoring-observability"  # runs de treino e de monitoramento
+MLFLOW_EXPERIMENT_ID = os.environ.get("MLFLOW_EXPERIMENT_ID", "0")  # destino dos traces
 
 SEED = 42
 

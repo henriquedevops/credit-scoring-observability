@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from credit_monitor import config
+from credit_monitor.monitoring import tracking
 
 LOGGER_NAME = "credit_monitor"
 
@@ -136,11 +137,16 @@ class RunTracker:
         status = "success"
         error = None
         try:
-            yield info
-        except Exception as exc:
-            status = "failed"
-            error = f"{type(exc).__name__}: {str(exc)[:300]}"
-            raise
+            with tracking.task_span(name, batch, stage) as span:
+                try:
+                    yield info
+                except Exception as exc:
+                    status = "failed"
+                    error = f"{type(exc).__name__}: {str(exc)[:300]}"
+                    raise
+                finally:
+                    if span is not None:
+                        span.set_outputs({"status": status, **info})
         finally:
             record = {
                 "ts": _now(),
@@ -171,6 +177,7 @@ class RunTracker:
     def alert(self, alert: Alert) -> None:
         self.alerts.append(alert)
         _append_jsonl(self.alerts_path, {"run_id": self.run_id, **asdict(alert)})
+        tracking.record_alert(asdict(alert))
         level = logging.ERROR if alert.severity == "critical" else logging.WARNING
         self.logger.log(
             level,

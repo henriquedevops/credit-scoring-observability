@@ -120,6 +120,20 @@ def _monitor_batch(
     reference: pd.DataFrame,
     bundle: train.ModelBundle,
 ) -> tuple[dict[str, Any], pd.DataFrame]:
+    with tracking.batch_span(month, step, simulate.SCHEDULE[month].__dict__) as span:
+        record, labeled = _monitor_batch_tasks(tracker, month, step, pool, reference, bundle)
+        tracking.finish_batch_span(span, record)
+    return record, labeled
+
+
+def _monitor_batch_tasks(
+    tracker: RunTracker,
+    month: str,
+    step: int,
+    pool: pd.DataFrame,
+    reference: pd.DataFrame,
+    bundle: train.ModelBundle,
+) -> tuple[dict[str, Any], pd.DataFrame]:
     alerts_before = len(tracker.alerts)
     features, labels, contract = _receive_batch(tracker, month, pool)
 
@@ -194,6 +208,22 @@ def run(skip_ingestion: bool = False) -> dict[str, Any]:
     tracker = RunTracker()
     tracker.reset_files()
     tracking.setup()
+    inputs = {
+        "skip_ingestion": skip_ingestion,
+        "production_months": config.PRODUCTION_MONTHS,
+        "batch_size": config.BATCH_SIZE,
+    }
+    metadata = {
+        "credit_monitor.contract_version": credit_contract.CONTRACT_VERSION,
+        "credit_monitor.runs_experiment": config.MLFLOW_EXPERIMENT,
+    }
+    with tracking.pipeline_trace(tracker.run_id, inputs, metadata) as span:
+        summary = _run(tracker, skip_ingestion)
+        tracking.finish_pipeline_trace(span, summary)
+    return summary
+
+
+def _run(tracker: RunTracker, skip_ingestion: bool) -> dict[str, Any]:
     started = time.perf_counter()
     tracker.logger.info("pipeline iniciado run_id=%s", tracker.run_id)
 
