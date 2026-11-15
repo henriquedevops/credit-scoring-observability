@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Observabilidade — Credit Scoring</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --series-1: #2a78d6; --series-2: #eb6834;
+  --good: #0ca30c; --warning: #fab219; --critical: #d03b3b;
+  --good-wash: rgba(12,163,12,0.10); --warning-wash: rgba(250,178,25,0.20);
+  --critical-wash: rgba(208,59,59,0.12);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5; --series-2: #d95926;
+    --good-wash: rgba(12,163,12,0.18); --warning-wash: rgba(250,178,25,0.18);
+    --critical-wash: rgba(208,59,59,0.22);
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 24px; margin: 0 0 4px; }
+h2 { font-size: 18px; margin: 40px 0 4px; }
+h3 { font-size: 14px; margin: 0 0 2px; }
+p { margin: 0 0 12px; }
+.sub { color: var(--ink-2); max-width: 78ch; }
+.meta { color: var(--muted); font-size: 12px; }
+code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+a { color: var(--series-1); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px; }
+.grid { display: grid; gap: 12px; }
+.tiles { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-top: 16px; }
+.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 760px) { .cols-2 { grid-template-columns: 1fr; } }
+.cols-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.tile .label { color: var(--ink-2); font-size: 12px; }
+.tile .value { font-size: 26px; font-weight: 600; line-height: 1.2; }
+.tile .note { color: var(--muted); font-size: 12px; }
+.hero { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+.hero .value { font-size: 48px; font-weight: 600; line-height: 1; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px;
+  border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--ink); }
+.badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; }
+.badge.ok { background: var(--good-wash); } .badge.ok::before { background: var(--good); }
+.badge.warning { background: var(--warning-wash); }
+.badge.warning::before { background: var(--warning); }
+.badge.critical { background: var(--critical-wash); }
+.badge.critical::before { background: var(--critical); }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--grid);
+  vertical-align: top; }
+th { color: var(--ink-2); font-weight: 600; font-size: 12px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.heat td.cell { text-align: center; font-variant-numeric: tabular-nums; padding: 3px; border: 0; }
+.heat td.cell span { display: block; padding: 6px 4px; border-radius: 6px; cursor: default; }
+.heat .ok span { background: var(--good-wash); }
+.heat .warning span { background: var(--warning-wash); box-shadow: inset 0 0 0 1.5px var(--warning); }
+.heat .critical span { background: var(--critical-wash); box-shadow: inset 0 0 0 1.5px var(--critical);
+  font-weight: 600; }
+.heat tr.score td { border-top: 1px solid var(--axis); }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2);
+  margin: 4px 0 8px; }
+.legend i { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--series-1);
+  vertical-align: middle; margin-right: 6px; }
+.legend i.s2 { border-color: var(--series-2); }
+svg { width: 100%; height: auto; display: block; overflow: visible; }
+svg text { font: 11px system-ui, sans-serif; fill: var(--muted); }
+svg text.endlabel { fill: var(--ink); font-weight: 600; font-size: 12px; }
+svg .grid { stroke: var(--grid); stroke-width: 1; }
+svg .axis, svg .refline { stroke: var(--axis); stroke-width: 1; }
+svg .refline { stroke: var(--ink-2); }
+svg .series { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round;
+  stroke-linecap: round; }
+svg .series.s2 { stroke: var(--series-2); }
+svg .area-ref { fill: var(--series-1); opacity: 0.10; }
+svg .dot { fill: var(--series-1); stroke: var(--surface); stroke-width: 2; }
+svg .hit { fill: transparent; outline: none; }
+svg .hit:hover, svg .hit:focus { fill: rgba(127,127,127,0.12); }
+.bar-row { display: grid; grid-template-columns: minmax(180px, 2fr) 3fr 70px; gap: 10px;
+  align-items: center; font-size: 13px; padding: 3px 0; }
+.bar-row code { overflow-wrap: anywhere; }
+.bar-row .track { height: 12px; }
+.bar-row .fill { height: 12px; background: var(--series-1); border-radius: 0 4px 4px 0; }
+.bar-row .n { text-align: right; font-variant-numeric: tabular-nums; }
+#tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--page);
+  padding: 6px 10px; border-radius: 6px; font-size: 12px; max-width: 320px; z-index: 10;
+  display: none; }
+details { margin-top: 8px; } summary { cursor: pointer; color: var(--ink-2); }
+ul.plain { margin: 0; padding-left: 18px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Observabilidade do modelo de Credit Scoring</h1>
+  <p class="sub">Saúde dos dados, do modelo e do pipeline em seis lotes mensais de produção,
+  comparados com a referência de treino ({{ summary.reference.period }}).</p>
+  <p class="meta">Execução <code>{{ summary.run_id }}</code> · gerado em {{ summary.generated_at }}
+  · referência: {{ fmt(summary.reference.rows_train, "int") }} linhas de treino +
+  {{ fmt(summary.reference.rows_holdout, "int") }} de holdout</p>
+
+  <div class="card hero">
+    <div>
+      <div class="meta">AUC no último lote ({{ month_label(last.month) }})</div>
+      <div class="value">{{ fmt(last.performance.auc) }}</div>
+    </div>
+    <div>
+      <span class="badge {{ overall }}">{{ status_icon[overall] }} {{ status_label[overall] }}</span>
+      <p class="sub" style="margin:6px 0 0">Na referência o AUC era {{ fmt(ref.auc) }}.
+      Queda de {{ fmt(last.auc_drop) }} — diagnóstico do lote:
+      <strong>{{ diagnosis_label[last.diagnosis][1] }}</strong>.</p>
+    </div>
+  </div>
+
+  <div class="grid tiles">
+    <div class="card tile"><div class="label">Alertas gerados</div>
+      <div class="value">{{ n_alerts }}</div>
+      <div class="note">{{ n_critical }} críticos · {{ n_warning }} de atenção</div></div>
+    <div class="card tile"><div class="label">Entregas bloqueadas pelo contrato</div>
+      <div class="value">{{ blocked }}</div>
+      <div class="note">nenhum dado inválido chegou ao modelo</div></div>
+    <div class="card tile"><div class="label">Taxa de aprovação</div>
+      <div class="value">{{ fmt(last.performance.approval_rate, "pct") }}</div>
+      <div class="note">era {{ fmt(ref.approval_rate, "pct") }} na referência</div></div>
+    <div class="card tile"><div class="label">Inadimplência nos aprovados</div>
+      <div class="value">{{ fmt(last.performance.bad_rate_approved, "pct") }}</div>
+      <div class="note">era {{ fmt(ref.bad_rate_approved, "pct") }} na referência</div></div>
+    <div class="card tile"><div class="label">Tarefas do pipeline</div>
+      <div class="value">{{ n_tasks - failed_tasks }}/{{ n_tasks }}</div>
+      <div class="note">{{ failed_tasks }} falha(s) · {{ fmt(summary.pipeline.duration_s, "num2") }} s no total</div></div>
+  </div>
+
+  <h2>Saúde do modelo ao longo do tempo</h2>
+  <p class="sub">A linha "ref." é o valor medido no holdout da referência. As três primeiras
+  métricas dependem do rótulo (pagou ou não), que só chega meses depois; o PSI do score é o
+  sinal precoce, disponível no dia da decisão.</p>
+  <div class="grid cols-2">
+    <div class="card"><h3>AUC (capacidade de ordenar risco)</h3>
+      <p class="meta">Alerta crítico se cair {{ fmt(thresholds.auc_drop_critical, "num2") }} ou mais</p>
+      {{ charts.auc | safe }}</div>
+    <div class="card"><h3>Inadimplência dentro dos aprovados</h3>
+      <p class="meta">É aqui que a degradação vira prejuízo</p>
+      {{ charts.bad_rate | safe }}</div>
+    <div class="card"><h3>Taxa de aprovação</h3>
+      <p class="meta">Mesmo limiar de score em todos os meses</p>
+      {{ charts.approval | safe }}</div>
+    <div class="card"><h3>PSI do score do modelo (drift de predição)</h3>
+      <p class="meta">Linha "ref." = limiar crítico de PSI ({{ fmt(thresholds.psi_critical, "num2") }})</p>
+      {{ charts.psi_score | safe }}</div>
+  </div>
+
+  <h2>Drift por variável (PSI contra a referência)</h2>
+  <p class="sub">Cada célula é o PSI da variável naquele mês.
+  <span class="badge ok">✓ Estável &lt; {{ fmt(thresholds.psi_warning, "num2") }}</span>
+  <span class="badge warning">▲ Atenção</span>
+  <span class="badge critical">✕ Crítico ≥ {{ fmt(thresholds.psi_critical, "num2") }}</span>
+  Passe o mouse para ver o KS e o deslocamento da média.</p>
+  <div class="card table-wrap">
+    <table class="heat">
+      <thead><tr><th>Variável</th>{% for l in labels %}<th class="num" style="text-align:center">{{ l }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for row in heat_rows %}
+        <tr class="{{ 'score' if row.is_score }}"><td>{{ row.label }} <span class="meta"><code>{{ row.column }}</code></span></td>
+        {% for c in row.cells %}<td class="cell {{ c.status }}"><span tabindex="0" data-tip="{{ c.tip }}">{{ c.icon }} {{ c.psi }}</span></td>{% endfor %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <table style="margin-top:12px" class="card">
+    <thead><tr><th>Lote</th><th>Diagnóstico</th><th class="num">Features críticas</th><th class="num">Features em atenção</th><th class="num">AUC</th><th>Relatório Evidently</th></tr></thead>
+    <tbody>
+    {% for b in batches %}
+      <tr><td>{{ month_label(b.month) }}</td>
+      <td><span class="badge {{ diagnosis_label[b.diagnosis][0] }}">{{ status_icon[diagnosis_label[b.diagnosis][0]] }} {{ diagnosis_label[b.diagnosis][1] }}</span></td>
+      <td class="num">{{ b.drift.n_critical }}</td><td class="num">{{ b.drift.n_warning }}</td>
+      <td class="num">{{ fmt(b.performance.auc) }}</td>
+      <td><a href="{{ b.report }}">drift_{{ b.month }}.html</a></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Como as distribuições mudaram em {{ month_label(last.month) }}</h2>
+  <div class="legend"><span><i></i>Referência ({{ summary.reference.period }})</span>
+    <span><i class="s2"></i>Produção ({{ month_label(last.month) }})</span></div>
+  <div class="grid cols-3">
+    {% for h in histograms %}
+    <div class="card"><h3>{{ h.label }}</h3>{{ h.svg | safe }}</div>
+    {% endfor %}
+  </div>
+
+  <h2>Alertas</h2>
+  <p class="sub">Todo alerta traz severidade, métrica, limiar e a ação recomendada. Os mesmos
+  registros estão em <code>reports/logs/alerts.jsonl</code>.</p>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Lote</th><th>Severidade</th><th>Tipo</th><th>O que aconteceu</th><th>Ação recomendada</th></tr></thead>
+      <tbody>
+      {% for a in summary.alerts %}
+        <tr><td>{{ month_label(a.batch) }}</td>
+        <td><span class="badge {{ a.severity }}">{{ status_icon[a.severity] }} {{ status_label[a.severity] }}</span></td>
+        <td>{{ alert_kind_label[a.kind] }}</td><td>{{ a.message }}</td><td>{{ a.action }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Qualidade de dados e contrato</h2>
+  <div class="grid cols-2">
+    <div class="card">
+      <h3>Curadoria da referência: linhas barradas por regra</h3>
+      <p class="meta">{{ fmt(summary.ingestion.rows_quarantined, "int") }} de
+      {{ fmt(summary.ingestion.rows_raw, "int") }} linhas brutas
+      ({{ fmt(summary.ingestion.pct_quarantined / 100, "pct") }}) foram para quarentena.
+      Uma linha pode violar mais de uma regra.</p>
+      {% for r in ingestion_rules %}
+      <div class="bar-row"><code>{{ r.rule }}</code>
+        <div class="track"><div class="fill" style="width: {{ r.width }}%"></div></div>
+        <div class="n">{{ r.count }}</div></div>
+      {% endfor %}
+    </div>
+    <div class="card">
+      <h3>Entregas bloqueadas em produção</h3>
+      {% for d in blocked_deliveries %}
+      <p><span class="badge critical">✕ Bloqueada</span> Lote {{ d.month }}, entrega {{ d.delivery }}:
+      {{ fmt(d.n_failures, "int") }} violações em {{ fmt(d.rows, "int") }} linhas. O lote foi para
+      quarentena e a entrega corrigida passou em seguida.</p>
+      <table>
+        <thead><tr><th>Regra violada</th><th class="num">Ocorrências</th></tr></thead>
+        <tbody>{% for rule, n in d.failures_by_rule.items() %}
+          <tr><td><code>{{ rule }}</code></td><td class="num">{{ fmt(n, "int") }}</td></tr>
+        {% endfor %}</tbody>
+      </table>
+      {% else %}<p>Nenhuma entrega bloqueada.</p>{% endfor %}
+    </div>
+  </div>
+
+  <h2>Saúde do pipeline e da infraestrutura</h2>
+  <div class="grid cols-2">
+    <div class="card table-wrap">
+      <h3>Objetivos de nível de serviço (SLOs)</h3>
+      <table>
+        <thead><tr><th>Indicador</th><th>Meta</th><th>Medido</th><th>Status</th></tr></thead>
+        <tbody>{% for s in slo %}
+          <tr><td>{{ s.name }}</td><td>{{ s.target }}</td><td>{{ s.actual }}</td>
+          <td><span class="badge {{ s.status }}">{{ status_icon[s.status] }} {{ 'Cumprido' if s.status == 'ok' else 'Violado' }}</span></td></tr>
+        {% endfor %}</tbody>
+      </table>
+      <p class="meta" style="margin-top:12px">Pico de memória do processo:
+      {{ fmt(summary.pipeline.max_rss_mb, "int") }} MB · duração total:
+      {{ fmt(summary.pipeline.duration_s, "num2") }} s</p>
+    </div>
+    <div class="card table-wrap">
+      <h3>Tarefas executadas</h3>
+      <table>
+        <thead><tr><th>Tarefa</th><th class="num">Execuções</th><th class="num">Falhas</th><th class="num">Média (ms)</th><th class="num">Máx. (ms)</th></tr></thead>
+        <tbody>{% for t in task_health %}
+          <tr><td>{{ t.label }}</td><td class="num">{{ t.runs }}</td>
+          <td class="num">{% if t.failed %}<span class="badge critical">✕ {{ t.failed }}</span>{% else %}0{% endif %}</td>
+          <td class="num">{{ fmt(t.avg_ms, "int") }}</td><td class="num">{{ fmt(t.max_ms, "int") }}</td></tr>
+        {% endfor %}</tbody>
+      </table>
+      <p class="meta" style="margin-top:8px">A falha em "Validação do contrato" é esperada:
+      é o contrato bloqueando a entrega defeituosa.</p>
+    </div>
+  </div>
+
+  <h2>Análise causal: qual mudança causou qual sintoma?</h2>
+  <p class="sub">Cada linha liga <em>um único</em> mecanismo de drift na intensidade máxima,
+  mantendo o resto fixo (mesmos clientes, mesma semente). A diferença para o controle é o
+  efeito causal daquele mecanismo.</p>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Intervenção</th><th>Features em drift crítico</th><th class="num">PSI do score</th><th class="num">AUC</th><th class="num">Δ AUC</th><th class="num">Aprovação</th><th class="num">Δ aprovação (p.p.)</th><th class="num">Inadimpl. aprovados</th></tr></thead>
+      <tbody>{% for c in summary.causal %}
+        <tr><td>{{ c.scenario }}</td><td><code>{{ c.features_critical }}</code></td>
+        <td class="num">{{ fmt(c.psi_score) }}</td><td class="num">{{ fmt(c.auc) }}</td>
+        <td class="num">{{ "%+.3f"|format(c.delta_auc)|replace(".", ",") }}</td>
+        <td class="num">{{ fmt(c.approval_rate, "pct") }}</td>
+        <td class="num">{{ "%+.1f"|format(c.delta_approval_pp)|replace(".", ",") }}</td>
+        <td class="num">{{ fmt(c.bad_rate_approved, "pct") }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+
+  <div class="grid cols-2" style="margin-top:12px">
+    <div class="card table-wrap">
+      <h3>Prescrição: o retreino recupera o modelo?</h3>
+      <p class="meta">Teste fora do tempo em {{ month_label(summary.retrain.test_month) }}; retreino com
+      a referência + lotes rotulados de {% for m in summary.retrain.retrain_months %}{{ month_label(m) }}{{ ", " if not loop.last }}{% endfor %}.</p>
+      <table>
+        <thead><tr><th>Modelo</th><th class="num">AUC</th><th class="num">Aprovação</th><th class="num">Inadimpl. aprovados</th><th class="num">Brier</th></tr></thead>
+        <tbody>
+        {% for name, key in [("Em produção (limiar original)", "production_model"), ("Em produção (limiar recalibrado)", "production_model_threshold_recalibrated"), ("Retreinado com dados recentes", "retrained_model")] %}
+          <tr><td>{{ name }}</td><td class="num">{{ fmt(summary.retrain[key].auc) }}</td>
+          <td class="num">{{ fmt(summary.retrain[key].approval_rate, "pct") }}</td>
+          <td class="num">{{ fmt(summary.retrain[key].bad_rate_approved, "pct") }}</td>
+          <td class="num">{{ fmt(summary.retrain[key].brier) }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card table-wrap">
+      <h3>Viés por faixa etária</h3>
+      <p class="meta">Impacto desproporcional = aprovação da faixa ÷ aprovação da faixa mais
+      aprovada. Abaixo de 0,80 acende alerta (regra dos 80%).</p>
+      <table>
+        <thead><tr><th>Período</th><th>Faixa</th><th class="num">Participação</th><th class="num">Aprovação</th><th class="num">Bons negados</th><th>Impacto desproporcional</th></tr></thead>
+        <tbody>{% for f in summary.fairness %}
+          <tr><td>{{ "Referência" if f.period == "referencia" else month_label(f.period) }}</td><td>{{ f.age_group }}</td>
+          <td class="num">{{ fmt(f.share, "pct") }}</td><td class="num">{{ fmt(f.approval_rate, "pct") }}</td>
+          <td class="num">{{ fmt(f.fpr, "pct") }}</td>
+          <td><span class="badge {{ 'warning' if f.below_80pct_rule else 'ok' }}">{{ '▲' if f.below_80pct_rule else '✓' }} {{ fmt(f.disparate_impact, "num2") }}</span></td></tr>
+        {% endfor %}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="meta" style="margin-top:32px">Fontes: <code>reports/monitoring_summary.json</code>,
+  <code>reports/logs/*.jsonl</code>, <code>reports/metrics.prom</code> e os relatórios do Evidently em
+  <code>reports/evidently/</code>. O histórico por lote também está no MLflow
+  (experimento <code>credit-scoring-observability</code>).</p>
+</main>
+<div id="tip" role="tooltip"></div>
+<script>
+(function () {
+  var tip = document.getElementById("tip");
+  function show(el, x, y) {
+    tip.textContent = el.getAttribute("data-tip");
+    tip.style.display = "block";
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = Math.max(8, Math.min(x + 12, window.innerWidth - w - 8)) + "px";
+    tip.style.top = Math.max(8, y - h - 12) + "px";
+  }
+  function hide() { tip.style.display = "none"; }
+  document.querySelectorAll("[data-tip]").forEach(function (el) {
+    el.addEventListener("pointermove", function (e) { show(el, e.clientX, e.clientY); });
+    el.addEventListener("pointerleave", hide);
+    el.addEventListener("focus", function () {
+      var r = el.getBoundingClientRect(); show(el, r.left + r.width / 2, r.top);
+    });
+    el.addEventListener("blur", hide);
+  });
+})();
+</script>
+</body>
+</html>
