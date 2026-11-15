@@ -1,5 +1,7 @@
 # Credit Scoring Observability
 
+🇧🇷 Português | 🇺🇸 [English](README.en.md)
+
 Camada de **sustentação e confiabilidade** para um modelo de Credit Scoring: contratos de dados,
 simulação e detecção de drift, observabilidade de pipeline e governança (LGPD).
 
