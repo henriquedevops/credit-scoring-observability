@@ -2,13 +2,13 @@
 
 A história econômica simulada (jan-jun/2026):
 
-- **jan-fev**: mundo estável — os lotes vêm da mesma distribuição da Referência.
+- **jan-fev**: mundo estável. Os lotes vêm da mesma distribuição da Referência.
   Servem de *controle*: o monitoramento não pode alarmar aqui (falso positivo).
 - **mar-abr**: inflação e juros altos. A renda nominal sobe (reajustes), as famílias
   usam mais o rotativo e comprometem mais renda, e a fintech passa a captar um
   público mais jovem. Isso é **data drift** (muda P(X)).
-- **mai-jun**: choque de desemprego. Clientes de histórico limpo — os que o modelo
-  aprova de olhos fechados — passam a inadimplir. Isso é **concept drift** (muda
+- **mai-jun**: choque de desemprego. Clientes de histórico limpo (os que o modelo
+  aprova de olhos fechados) passam a inadimplir. Isso é **concept drift** (muda
   P(Y|X)): as mesmas features agora significam outro risco.
 
 Cada mecanismo é uma função pura com ``intensity`` em [0, 1], o que permite ligar
@@ -92,7 +92,7 @@ def apply_credit_stress(
     """Juros altos: parte dos clientes usa mais o rotativo; todos comprometem mais renda.
 
     Só uma fração dos clientes (crescente com a intensidade) é afetada no rotativo,
-    cada um em grau diferente — o aperto não atinge todo mundo por igual.
+    cada um em grau diferente: o aperto não atinge todo mundo por igual.
     """
     if intensity <= 0:
         return df
@@ -111,7 +111,7 @@ def apply_unemployment_shock(
 ) -> pd.DataFrame:
     """Concept drift: bons pagadores de histórico limpo passam a inadimplir.
 
-    Nenhuma feature muda — só o rótulo. Por isso nenhum teste de distribuição
+    Nenhuma feature muda, só o rótulo. Por isso nenhum teste de distribuição
     em X enxerga este drift; ele só aparece quando o rótulo chega.
     A probabilidade de virar inadimplente é maior para quem tem dependentes e
     renda abaixo da mediana (mais vulnerável à perda do emprego).
@@ -160,7 +160,7 @@ def corrupt_batch(df: pd.DataFrame, seed: int = config.SEED) -> pd.DataFrame:
     - código-sentinela 98 nos contadores de atraso;
     - comprometimento de renda absurdo (dívida em reais no lugar da razão);
     - linhas duplicadas (job de ingestão reprocessado);
-    - coluna ``cpf`` — PII que nunca deveria chegar à camada analítica.
+    - coluna ``cpf``: PII que nunca deveria chegar à camada analítica.
     """
     rng = np.random.default_rng(seed)
     out = df.copy()

@@ -6,7 +6,7 @@
   linha do tempo auditável do modelo.
 - **Prometheus**: as mesmas métricas de saúde em ``reports/metrics.prom``
   (formato de exposição em texto), prontas para o *textfile collector* do
-  node_exporter ou para um Pushgateway — é o gancho com a stack da Fase 3.
+  node_exporter ou para um Pushgateway, o que permite ver os mesmos números no Grafana.
 """
 
 from __future__ import annotations

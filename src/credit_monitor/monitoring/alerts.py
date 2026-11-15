@@ -108,7 +108,7 @@ def drift_alerts(batch: str, table: pd.DataFrame) -> list[Alert]:
 
 
 def performance_alert(batch: str, auc: float, reference_auc: float) -> Alert | None:
-    """Alerta de degradação — só possível quando o rótulo do lote já chegou."""
+    """Alerta de degradação, só possível quando o rótulo do lote já chegou."""
     drop = reference_auc - auc
     if drop < config.AUC_DROP_WARNING:
         return None

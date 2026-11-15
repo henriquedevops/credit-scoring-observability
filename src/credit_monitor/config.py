@@ -90,12 +90,12 @@ BATCH_SIZE = 6000
 # no treino para aprovar ~80% da carteira de referência.
 TARGET_APPROVAL_RATE = 0.80
 
-# --- Limiares de drift (ver aula 02.02: PSI < 0,1 estável; 0,1-0,2 moderado; >= 0,2 crítico)
+# --- Limiares de drift (PSI < 0,1 estável; 0,1-0,2 moderado; >= 0,2 crítico)
 PSI_WARNING = 0.10
 PSI_CRITICAL = 0.20
 PSI_BINS = 10
 KS_ALPHA = 0.05  # nível de significância do teste KS
-KS_D_WARNING = 0.10  # em crédito, D > 0,1 já preocupa (aula 02.04)
+KS_D_WARNING = 0.10  # em crédito, D > 0,1 já preocupa (regra prática)
 DATASET_DRIFT_SHARE = 0.30  # fração de features em drift crítico que dispara alerta de dataset
 
 # --- Limiares de performance (só avaliáveis quando o rótulo chega) -------------

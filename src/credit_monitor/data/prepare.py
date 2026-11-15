@@ -46,7 +46,7 @@ def download_raw(force: bool = False) -> pd.DataFrame:
 def pseudonymize(values: pd.Series, salt: str | None = None) -> pd.Series:
     """Troca um identificador interno por um pseudônimo (SHA-256 com sal, 16 hex).
 
-    O sal vem da variável de ambiente ``CREDIT_MONITOR_ID_SALT`` — fica fora do
+    O sal vem da variável de ambiente ``CREDIT_MONITOR_ID_SALT`` e fica fora do
     código e do git. Sem o sal não dá para refazer o caminho pseudônimo -> cliente;
     com ele, o controlador consegue atender pedidos do titular (acesso, exclusão).
     Isso é *pseudonimização* (LGPD art. 13, §4º), não anonimização.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Observabilidade — Credit Scoring</title>
+<title>Observabilidade do Credit Scoring</title>
 <style>
 :root {
   color-scheme: light;
@@ -118,7 +118,7 @@ ul.plain { margin: 0; padding-left: 18px; }
     <div>
       <span class="badge {{ overall }}">{{ status_icon[overall] }} {{ status_label[overall] }}</span>
       <p class="sub" style="margin:6px 0 0">Na referência o AUC era {{ fmt(ref.auc) }}.
-      Queda de {{ fmt(last.auc_drop) }} — diagnóstico do lote:
+      Queda de {{ fmt(last.auc_drop) }}. Diagnóstico do lote:
       <strong>{{ diagnosis_label[last.diagnosis][1] }}</strong>.</p>
     </div>
   </div>

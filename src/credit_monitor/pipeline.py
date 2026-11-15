@@ -282,7 +282,7 @@ def run(skip_ingestion: bool = False) -> dict[str, Any]:
         )
 
     tracker.logger.info(
-        "pipeline concluído em %.1fs — %d alertas (%d críticos)",
+        "pipeline concluído em %.1fs: %d alertas (%d críticos)",
         summary["pipeline"]["duration_s"],
         len(tracker.alerts),
         sum(a.severity == "critical" for a in tracker.alerts),

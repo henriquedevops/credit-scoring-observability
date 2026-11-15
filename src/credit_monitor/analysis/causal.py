@@ -1,7 +1,7 @@
 """Análise causal da degradação: qual mecanismo causou qual sintoma?
 
 Correlação não basta: em junho *tudo* mudou ao mesmo tempo (renda, rotativo,
-idade, rótulos). Para atribuir causa usamos **intervenção** — a ideia do
+idade, rótulos). Para atribuir causa usamos **intervenção**, a ideia do
 operador ``do()`` de Pearl: num simulador podemos ligar um mecanismo de cada
 vez, mantendo todo o resto fixo (mesmo pool, mesma semente), e medir o efeito.
 
@@ -58,7 +58,7 @@ def run_interventions(
                 "features_critical": ", ".join(
                     features.loc[features["severity"] == "critical", "column"]
                 )
-                or "—",
+                or "nenhuma",
                 "n_features_critical": int((features["severity"] == "critical").sum()),
                 "psi_score": float(table.loc[table["column"] == config.SCORE_COL, "psi"].iloc[0]),
                 "auc": round(metrics["auc"], 4),
@@ -86,7 +86,7 @@ def retrain_experiment(
 
     Compara, no lote mais recente (junho), o modelo em produção com um modelo
     retreinado em Referência + lotes rotulados de março a maio. Junho fica de
-    fora do treino — é o teste "fora do tempo" (out-of-time).
+    fora do treino: é o teste "fora do tempo" (out-of-time).
     """
     months = sorted(labeled_batches)
     test_month = months[-1]

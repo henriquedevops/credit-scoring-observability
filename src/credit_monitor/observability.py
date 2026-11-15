@@ -1,10 +1,10 @@
-"""Logs estruturados, eventos de pipeline e alertas — a "telemetria" do projeto.
+"""Logs estruturados, eventos de pipeline e alertas: a "telemetria" do projeto.
 
 Três arquivos JSON Lines (uma linha = um evento) ficam em ``logs/``:
 
-- ``pipeline.jsonl``  — log de aplicação (mensagens INFO/WARNING/ERROR);
-- ``tasks.jsonl``     — um registro por tarefa executada (status, duração, linhas, memória);
-- ``alerts.jsonl``    — alertas de negócio/qualidade (contrato violado, drift, degradação).
+- ``pipeline.jsonl``: log de aplicação (mensagens INFO/WARNING/ERROR);
+- ``tasks.jsonl``: um registro por tarefa executada (status, duração, linhas, memória);
+- ``alerts.jsonl``: alertas de negócio/qualidade (contrato violado, drift, degradação).
 
 JSON Lines é o formato que agregadores (Datadog, Loki, CloudWatch) ingerem sem
 parser customizado: cada linha é um JSON completo, com chaves consistentes.
@@ -128,7 +128,7 @@ class RunTracker:
                 info["rows_in"] = len(df)
 
         Se o bloco levantar exceção, a tarefa é registrada como ``failed`` e a
-        exceção segue adiante — quem chamou decide se o pipeline continua.
+        exceção segue adiante: quem chamou decide se o pipeline continua.
         """
         info: dict[str, Any] = {}
         start = time.perf_counter()
@@ -174,7 +174,7 @@ class RunTracker:
         level = logging.ERROR if alert.severity == "critical" else logging.WARNING
         self.logger.log(
             level,
-            "ALERTA [%s/%s] lote=%s — %s",
+            "ALERTA [%s/%s] lote=%s: %s",
             alert.severity,
             alert.kind,
             alert.batch,

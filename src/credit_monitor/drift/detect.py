@@ -1,7 +1,7 @@
 """Detecção de drift: relatório HTML do Evidently + tabela própria de PSI/KS.
 
 Para cada lote de produção comparamos com a **Referência** (o holdout da safra de
-treino — mesma distribuição do treino, mas nunca vista pelo modelo, então serve
+treino: mesma distribuição do treino, mas nunca vista pelo modelo, então serve
 de régua justa tanto para drift quanto para performance).
 """
 
@@ -45,9 +45,9 @@ def evidently_report(
 
     O relatório tem três blocos:
 
-    1. Drift por **PSI** (limiar 0,2) — features + score do modelo;
-    2. Drift por **Kolmogorov-Smirnov** (p-valor < 0,05) — as mesmas colunas;
-    3. Qualidade de classificação — só quando o rótulo do lote já chegou.
+    1. Drift por **PSI** (limiar 0,2): features + score do modelo;
+    2. Drift por **Kolmogorov-Smirnov** (p-valor < 0,05): as mesmas colunas;
+    3. Qualidade de classificação, só quando o rótulo do lote já chegou.
     """
     has_target = config.TARGET in current.columns
     cols = [*MONITORED, config.PRED_COL] + ([config.TARGET] if has_target else [])
@@ -69,7 +69,7 @@ def evidently_report(
     snapshot = report.run(
         Dataset.from_pandas(current[cols], data_definition=definition),
         Dataset.from_pandas(reference[cols], data_definition=definition),
-        name=f"Drift e performance — lote {month}",
+        name=f"Drift e performance: lote {month}",
     )
     output.parent.mkdir(parents=True, exist_ok=True)
     snapshot.save_html(str(output))

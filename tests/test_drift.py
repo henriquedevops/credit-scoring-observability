@@ -75,7 +75,7 @@ def test_credit_stress_drifts_utilization_and_debt(clean_frame):
 
 
 def test_unemployment_shock_changes_labels_but_not_features(clean_frame):
-    """Concept drift puro: X idêntico, só P(Y|X) muda — invisível a PSI/KS."""
+    """Concept drift puro: X idêntico, só P(Y|X) muda, invisível a PSI/KS."""
     control = simulate.make_batch(clean_frame, "2026-06", DriftScenario(), size=1500)
     shocked = simulate.make_batch(
         clean_frame, "2026-06", DriftScenario(unemployment_shock=1.0), size=1500

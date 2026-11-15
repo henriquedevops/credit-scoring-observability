@@ -8,7 +8,7 @@ __pycache__/
 htmlcov/
 .env
 
-# Dados: nada de dado de cliente no git (minimização — ver README, seção LGPD).
+# Dados: nada de dado de cliente no git (minimização; ver README, seção LGPD).
 # O dataset público é baixado por `make data`; os derivados são regenerados pelo pipeline.
 /data/
 

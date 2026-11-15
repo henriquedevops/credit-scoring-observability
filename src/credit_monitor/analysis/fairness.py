@@ -3,7 +3,7 @@
 O dataset não traz gênero, raça ou outros dados sensíveis (LGPD art. 5º, II), mas
 traz **idade**, que o modelo usa como feature. Idade não é "dado sensível" na
 LGPD, porém decisões que prejudicam sistematicamente uma faixa etária ferem o
-princípio da não discriminação (art. 6º, IX) — então medimos.
+princípio da não discriminação (art. 6º, IX). Por isso medimos.
 
 Métricas por faixa etária:
 

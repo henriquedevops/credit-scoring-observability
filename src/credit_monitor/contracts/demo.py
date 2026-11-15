@@ -5,7 +5,7 @@ Execução::
     python -m credit_monitor.contracts.demo
 
 Sai com código 0 se o contrato se comportou como esperado (aceitou o lote bom e
-bloqueou o ruim) — o que permite usar o script como teste de fumaça no CI.
+bloqueou o ruim), o que permite usar o script como teste de fumaça no CI.
 """
 
 from __future__ import annotations

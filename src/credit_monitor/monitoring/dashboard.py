@@ -1,7 +1,7 @@
 """Dashboard HTML estático de observabilidade (sem servidor, sem dependência externa).
 
 Lê o ``monitoring_summary.json`` produzido pelo pipeline e gera um único arquivo
-``reports/dashboard.html`` com SVG embutido — abre com dois cliques, funciona
+``reports/dashboard.html`` com SVG embutido: abre com dois cliques, funciona
 offline e pode ser publicado no GitHub Pages.
 """
 

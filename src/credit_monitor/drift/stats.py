@@ -26,7 +26,7 @@ def _bin_edges(reference: np.ndarray, bins: int) -> np.ndarray:
     """Bordas dos bins, definidas só pela referência.
 
     - Variável **discreta** (até 20 valores distintos, ex.: nº de atrasos): cada
-      valor vira um bin. Quantis não servem aqui — com 90% de zeros todos os
+      valor vira um bin. Quantis não servem aqui: com 90% de zeros todos os
       quantis valem 0, sobra um único bin e o PSI daria sempre 0 (ponto cego).
     - Variável **contínua**: quantis da referência (cada bin com ~mesma massa),
       o que evita bins vazios e torna o PSI comparável entre variáveis.
@@ -44,7 +44,7 @@ def psi(reference: np.ndarray, current: np.ndarray, bins: int = config.PSI_BINS)
 
     PSI = Σ (p_atual − p_ref) · ln(p_atual / p_ref), somado sobre os bins.
 
-    Leitura (aula 02.02): < 0,10 estável · 0,10-0,20 mudança moderada · >= 0,20
+    Leitura usual: < 0,10 estável · 0,10-0,20 mudança moderada · >= 0,20
     mudança significativa. Não é um teste de hipótese: é um *tamanho de efeito*,
     então não "explode" com amostras grandes como o p-valor do KS.
     """

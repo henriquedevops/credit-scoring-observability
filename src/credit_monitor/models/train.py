@@ -60,11 +60,11 @@ def evaluate(y_true: np.ndarray, scores: np.ndarray, threshold: float) -> dict[s
     """Métricas de risco de crédito para um conjunto rotulado.
 
     - ``auc``: capacidade de ordenar bons e maus pagadores (0,5 = aleatório).
-    - ``ks``: maior distância entre as curvas acumuladas de score de bons e maus —
+    - ``ks``: maior distância entre as curvas acumuladas de score de bons e maus;
       métrica clássica de crédito (não confundir com o teste KS de drift, que
       compara a mesma variável em dois períodos).
     - ``approval_rate``: fração aprovada (score abaixo do limiar).
-    - ``bad_rate_approved``: inadimplência dentro dos aprovados — é aqui que a
+    - ``bad_rate_approved``: inadimplência dentro dos aprovados. É aqui que a
       degradação vira prejuízo.
     - ``recall_bad``: fração dos inadimplentes que o modelo barrou.
     """

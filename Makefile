@@ -3,7 +3,7 @@ PY ?= .venv/bin/python
 .PHONY: help install data train contract-demo pipeline dashboard mlflow-ui lint test all clean
 
 help:
-	@echo "make install        - cria .venv e instala o projeto (pip) — ou use 'uv sync'"
+	@echo "make install        - cria .venv e instala o projeto (pip); ou use 'uv sync'"
 	@echo "make data           - baixa o dataset, aplica o contrato e separa referencia x producao"
 	@echo "make train          - treina o modelo baseline na referencia"
 	@echo "make contract-demo  - demonstra o contrato aceitando um lote bom e bloqueando um ruim"
